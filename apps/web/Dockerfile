@@ -32,4 +32,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
 
-CMD ["pnpm", "dev", "--hostname", "0.0.0.0", "--port", "3000"]
+# Run next directly: `pnpm dev` would first try to re-install into bind-mounted folders.
+CMD ["./node_modules/.bin/next", "dev", "--hostname", "0.0.0.0", "--port", "3000"]

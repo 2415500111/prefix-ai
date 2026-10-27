@@ -147,6 +147,9 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     image: prefix-ai/web:dev
+    # Dev only: bind-mounted source belongs to the host user, and on Linux hosts the
+    # image's non-root user cannot write Next.js's generated files into it.
+    user: root
     # Only public settings: the web container never sees backend secrets.
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
@@ -158,6 +161,7 @@ services:
       # Keep the image's dependencies and build cache instead of the host's.
       - /app/apps/web/node_modules
       - /app/apps/web/.next
+      - /app/packages/shared/node_modules
     depends_on:
       api:
         condition: service_healthy
