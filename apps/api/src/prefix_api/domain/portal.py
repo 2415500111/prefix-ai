@@ -6,14 +6,20 @@ from enum import StrEnum
 
 from prefix_api.domain.enums import CheckInResponse, TimelineEventStatus
 
+# Time a patient has to confirm a step after it applies before it shows as overdue.
+CONFIRMATION_GRACE = dt.timedelta(hours=4)
+
 
 class StepState(StrEnum):
+    # Confirmed by the patient.
     DONE = "DONE"
-    # The reminder time has come: the patient should act (or this instruction now applies).
+    # The patient should do this and confirm it now.
     DUE = "DUE"
     UPCOMING = "UPCOMING"
-    # A step needing confirmation whose time has passed without one.
+    # Needed confirmation and the grace period has passed without one.
     OVERDUE = "OVERDUE"
+    # An instruction (nothing to confirm) that applies from now on, e.g. "stop clopidogrel".
+    ACTIVE = "ACTIVE"
     # The patient said they cannot do it; staff have been told.
     PROBLEM = "PROBLEM"
 
@@ -39,7 +45,7 @@ def step_view(
     Times decide the state, not whether a reminder went out: patients who use only the
     portal (or have no messaging consent) get no reminders but still see their steps.
     Confirming is possible from the reminder time onwards, so a step cannot be ticked off
-    days before it applies; a problem can be reported at any time before it is done.
+    days before it applies; a problem can be reported at any time until it is done.
     """
     if status is TimelineEventStatus.CONFIRMED:
         return StepView(StepState.DONE, can_confirm=False, can_report_problem=False)
@@ -48,18 +54,10 @@ def step_view(
         return StepView(
             StepState.PROBLEM, can_confirm=requires_confirmation, can_report_problem=False
         )
-
+    if now < send_at:
+        return StepView(StepState.UPCOMING, can_confirm=False, can_report_problem=True)
     if not requires_confirmation:
-        if now >= due_at:
-            state = StepState.DONE
-        elif now >= send_at:
-            state = StepState.DUE
-        else:
-            state = StepState.UPCOMING
-        return StepView(state, can_confirm=False, can_report_problem=state is not StepState.DONE)
-
-    if now >= due_at:
+        return StepView(StepState.ACTIVE, can_confirm=False, can_report_problem=True)
+    if now >= due_at + CONFIRMATION_GRACE:
         return StepView(StepState.OVERDUE, can_confirm=True, can_report_problem=True)
-    if now >= send_at:
-        return StepView(StepState.DUE, can_confirm=True, can_report_problem=True)
-    return StepView(StepState.UPCOMING, can_confirm=False, can_report_problem=True)
+    return StepView(StepState.DUE, can_confirm=True, can_report_problem=True)

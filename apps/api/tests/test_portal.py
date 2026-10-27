@@ -270,14 +270,18 @@ HOUR = dt.timedelta(hours=1)
     [
         (TimelineEventStatus.CONFIRMED, True, -2 * HOUR, -HOUR, None, StepState.DONE),
         (TimelineEventStatus.SENT, True, -2 * HOUR, HOUR, CheckInResponse.NO, StepState.PROBLEM),
-        (TimelineEventStatus.SENT, True, -2 * HOUR, -HOUR, None, StepState.OVERDUE),
+        # Reminders go out at the due time: the patient has a grace period to confirm.
+        (TimelineEventStatus.SENT, True, -HOUR, -HOUR, None, StepState.DUE),
+        (TimelineEventStatus.SENT, True, -5 * HOUR, -5 * HOUR, None, StepState.OVERDUE),
         (TimelineEventStatus.SENT, True, -2 * HOUR, HOUR, None, StepState.DUE),
         (TimelineEventStatus.PENDING, True, HOUR, 2 * HOUR, None, StepState.UPCOMING),
         # Portal-only patients get no reminder (SKIPPED) but still see the step's state.
-        (TimelineEventStatus.SKIPPED, True, -2 * HOUR, -HOUR, None, StepState.OVERDUE),
-        (TimelineEventStatus.SENT, False, -2 * HOUR, -HOUR, None, StepState.DONE),
-        (TimelineEventStatus.SENT, False, -2 * HOUR, HOUR, None, StepState.DUE),
+        (TimelineEventStatus.SKIPPED, True, -5 * HOUR, -5 * HOUR, None, StepState.OVERDUE),
+        # Instructions without a confirmation apply from their time onwards.
+        (TimelineEventStatus.SENT, False, -2 * HOUR, -HOUR, None, StepState.ACTIVE),
+        (TimelineEventStatus.SENT, False, -2 * HOUR, HOUR, None, StepState.ACTIVE),
         (TimelineEventStatus.PENDING, False, HOUR, 2 * HOUR, None, StepState.UPCOMING),
+        (TimelineEventStatus.SENT, False, -HOUR, HOUR, CheckInResponse.NO, StepState.PROBLEM),
     ],
 )
 def test_step_states(
@@ -299,3 +303,4 @@ def test_step_states(
 
     assert view.state is expected
     assert view.can_confirm == (confirm and expected not in (StepState.DONE, StepState.UPCOMING))
+    assert view.can_report_problem == (expected not in (StepState.DONE, StepState.PROBLEM))
