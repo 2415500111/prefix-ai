@@ -1,0 +1,64 @@
+# Install once with `make setup` (runs `uv run pre-commit install`).
+# Python and JS linters run from the project's own lockfiles (uv / pnpm), so hook
+# versions never drift from what `make lint` and CI use.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+        args: [--allow-multiple-documents] # pnpm 12 lockfiles are multi-document
+      - id: check-toml
+      - id: check-json
+        exclude: tsconfig\.json$
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: [--branch, main]
+
+  - repo: local
+    hooks:
+      - id: forbid-sensitive-files
+        name: forbid secrets, keys, DB dumps and real patient data
+        language: fail
+        entry: "Never commit this file type (secrets, keys, dumps, or real patient data):"
+        files: (^|/)(\.env(\..*)?|.*\.(pem|key|p12|pfx|dump|sqlite3?|db|sql\.gz))$|^data/real/|^backups/
+        exclude: ^\.env\.example$
+      - id: detect-secrets
+        name: detect-secrets
+        entry: uv run detect-secrets-hook --baseline .secrets.baseline
+        language: system
+        exclude: (^|/)(pnpm-lock\.yaml|uv\.lock)$
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+      - id: prettier
+        name: prettier
+        entry: pnpm exec prettier --write --ignore-unknown
+        language: system
+        files: ^(apps/web|packages)/
+        types_or: [ts, tsx, javascript, json, css, yaml]
+      - id: eslint
+        name: eslint
+        entry: pnpm --filter @prefix/web lint
+        language: system
+        files: ^apps/web/.*\.(ts|tsx|js|mjs)$
+        pass_filenames: false

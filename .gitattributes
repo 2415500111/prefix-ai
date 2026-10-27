@@ -1,0 +1,4 @@
+# Keep LF everywhere so files copied into Linux containers behave the same on Windows.
+* text=auto eol=lf
+*.ico binary
+*.png binary

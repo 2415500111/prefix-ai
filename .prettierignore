@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+uv.lock
+**/.next
+**/node_modules
+**/.venv
+apps/api
+apps/worker
+*.md

@@ -1,0 +1,51 @@
+# Secrets and keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Data that must never be committed (real patient data, DB dumps, local DBs)
+data/real/
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+.pnpm-debug.log*
+npm-debug.log*
+
+# Celery
+celerybeat-schedule*
+celerybeat.pid
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
