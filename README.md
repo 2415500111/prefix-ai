@@ -51,6 +51,33 @@ make health             # checks both health endpoints
 
 `make up` waits until every container's healthcheck passes. `make ps` shows their status, and `make logs` follows the logs. The API, worker, and web containers mount the source code, so edits reload automatically.
 
+## Run without Docker (e.g. Windows without WSL2)
+
+Needs Python 3.12+ (for `pip`), Node.js 24 and git. Run these from the repo root in PowerShell.
+
+```powershell
+py -m pip install uv                       # once: Python package/project manager
+Copy-Item .env.example .env                # once (skip if .env exists)
+
+# Local PostgreSQL + pgvector (no Docker). Data in .devdb/; writes DATABASE_URL into .env.
+# Re-run after a reboot (the port can change).
+uv run --no-project --python 3.12 --with pgserver python scripts/dev_postgres.py
+
+uv sync                                     # Python dependencies
+uv run alembic -c apps/api/alembic.ini upgrade head
+$env:SEED_ADMIN_PASSWORD = "Demo-Prefix-2026!"   # pick any password
+uv run python -m prefix_api.seed           # demo org, admin, SAMPLE protocols
+
+# Terminal 1: API on http://localhost:8000
+uv run uvicorn prefix_api.main:create_app --factory --reload --port 8000
+
+# Terminal 2: web app on http://localhost:3000
+corepack pnpm install
+corepack pnpm dev
+```
+
+Open http://localhost:3000/login and sign in as `admin@demo-hospital.example.com` with the password you chose. Then open **Protocols**. The seed only sets the password when it first creates the admin.
+
 ## Native development (without Docker for the apps)
 
 ```bash
