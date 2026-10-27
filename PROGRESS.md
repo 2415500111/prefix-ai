@@ -5,7 +5,8 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 ## Resume point
 
 **Status:** Phases 0–4 merged (latest tag `v0.4.0`).
-**Next:** Phase 5 (Patient Portal) on `phase-5-patient-portal`; write its plan below first.
+Phase 5 (Patient Portal) in progress on `phase-5-patient-portal`.
+**Next:** plan item 1 (portal read API).
 
 **Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 
@@ -57,7 +58,21 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
   Appointments API that builds a DST-safe prep timeline from the approved protocol (quiet hours, catch-ups for late bookings, regenerated on reschedule and cancelled on cancel). A Celery Beat job claims due reminders every minute and sends each one exactly once through Console, Twilio SMS/WhatsApp or SMTP, and only with consent. Claude translates approved text only and falls back to the original on any failure. A signed Twilio webhook understands YES/NO/HELP in English and Hindi and escalates problems to staff.
   Verified: 277 pytest + 22 Vitest, ruff/mypy strict/ESLint/tsc/Prettier clean, Next.js build OK; CI green (run 40562750069) including Docker build and compose smoke test.
-- [ ] Phase 5 — Patient Portal (mobile-first PWA)
+- [ ] Phase 5 — Patient Portal (mobile-first PWA) · branch `phase-5-patient-portal`
+  **Plan:**
+  1. Portal read API: `GET /patient/appointments`: the patient's upcoming appointments with procedure, time, arrival, facility (address, map link, phone, timezone) and the timeline. Each step gets a state (done / due / upcoming / overdue / problem) computed in one pure domain function. Patients only ever see their own data; every read is audited as the patient.
+  2. Check-in actions shared by the portal and SMS: one service applies YES / NO / HELP to an event. Portal endpoints: confirm a step, report a problem (optional note, stored encrypted), and request a reschedule (task for the coordinators). NO on a critical step opens a HIGH escalation, marks the appointment AT_RISK and creates a call task. The SMS webhook is refactored onto the same service.
+  3. Calendar: `GET /patient/appointments/{id}/calendar.ics` (RFC 5545, arrival time and location, an alarm the evening before; no clinical details beyond the procedure name).
+  4. Translations: migration 0005 adds `prep_step_translation` (step, language → translated approved text, model). Dispatch reads and writes it. A Beat job pre-translates steps of the next 14 days' appointments for non-English patients. The portal shows the cached translation, or the approved English text with a notice. The LLM is never called while a patient waits.
+  5. Web portal (`/p`):
+     - The magic-link token is read from the URL fragment and exchanged by a Server Action for an httpOnly patient cookie; the fragment is then removed.
+     - `/p/home` shows the appointment card, a countdown timeline, the readiness checklist with Confirm and "No / I have a problem" buttons, "I need to reschedule", the `.ics` download, and an English/Hindi switch.
+     - When the session expires, an expired-session page tells the patient how to get a new link.
+     - Mobile-first, with large type, 48px tap targets, WCAG AA contrast, little client JS and a PWA manifest.
+  6. Tests:
+     - pytest: step states, actions and escalations, patient isolation, ICS, the translation cache and warm-up.
+     - Vitest: i18n, formatting, components.
+     - Playwright E2E (Chromium at a phone viewport, axe accessibility check): redeem link → confirm → report problem → Hindi. It runs in CI against a real API and Postgres via a fixture script.
 - [ ] Phase 6 — AI Prep Assistant
 - [ ] Phase 7 — Cancellation Risk Score
 - [ ] Phase 8 — Coordinator Dashboard
