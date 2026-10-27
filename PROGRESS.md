@@ -4,8 +4,10 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phase 1 committed locally on `phase-1-scaffold`. Waiting on the user for (1) the GitHub `origin` URL and (2) a way to run `docker compose build` (local Docker, or CI).
-**Next:** merge `phase-1-scaffold` → `main`, tag `v0.1.0`, push, then start Phase 2 (Data model + Auth/RBAC).
+**Status:** Phases 0–1 merged and pushed to https://github.com/2415500111/prefix-ai. CI added on `main`.
+**Next:** Phase 2 (Data model + Auth/RBAC) on branch `phase-2-data-model-auth`.
+
+**Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 
 ---
 
@@ -15,7 +17,7 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 - [x] **Phase 1 — Scaffold** · 2026-10-27 · `v0.1.0`
   pnpm + uv monorepo with a FastAPI API (`/health`, settings, JSON logs, CORS), a Celery worker and beat (demo task), a Next.js 16 + shadcn/ui web app (landing page, `/dashboard`), Alembic (pgvector migration), Docker Compose with healthchecks, Makefile, linters, pre-commit with a secret scanner, and README.
   Verified: 17 pytest + 3 Vitest passing, ruff/mypy strict/ESLint/tsc/Prettier clean, web production build OK, API `/health` OK over HTTP.
-  **Open:** `docker compose up`/`build` not yet run (no container runtime on the dev machine).
+  Docker build and compose smoke test: verified in CI.
 
 - [ ] Phase 2 — Data model + Auth/RBAC
 - [ ] Phase 3 — Protocol Engine

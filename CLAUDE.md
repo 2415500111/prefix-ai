@@ -77,6 +77,9 @@ Each log entry records who (user/service), what (entity and id), action (read/cr
 - **One branch per phase:** `phase-<n>-<short-name>` (e.g. `phase-2-data-model-auth`), created from an up-to-date `main`. Never commit directly to `main`; the pre-commit hook enforces this.
 - **Small Conventional Commits:** `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:` (an optional scope is fine, e.g. `feat(api): ...`).
 - **Definition of done:** a phase is complete ONLY when lint, type-check, all tests, and `docker compose build` pass. Show the results to the user.
+- **CI is the gate.** `.github/workflows/ci.yml` runs on every push to `main` and `phase-*` and on pull requests: ruff, mypy, pytest, ESLint, tsc, Prettier, Vitest, the Next.js build, `docker compose build`, and a compose smoke test (`up --wait`, migrations, health checks). The dev machine has no Docker, so the Docker checks run only in CI. If Docker is installed locally later, run them locally too.
+  - Push the phase branch, then wait for its run: `gh run watch` (or poll `gh run list --branch <branch>`).
+  - Merge to `main` ONLY when CI is green. If it fails, read `gh run view <id> --log-failed`, fix, push again, and re-check.
 - **On completion:**
   1. Update PROGRESS.md: tick the phase, add the completion date and a 2–3 line summary.
   2. Merge into `main` with `git merge --no-ff`.
