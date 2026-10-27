@@ -25,6 +25,10 @@ select = [
   "ASYNC", "DTZ", "T20", "PTH", "TID", "RUF",
 ]
 
+# S105/S106 flag any name containing "token" (token types, not secrets); real secret
+# scanning is done by detect-secrets in pre-commit.
+extend-ignore = ["S105", "S106"]
+
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "S105", "S106"]
 "apps/api/migrations/**" = ["N999"]
@@ -37,7 +41,7 @@ python_version = "3.14"
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
-mypy_path = ["apps/api/src", "apps/worker/src"]
+mypy_path = ["apps/api/src", "apps/worker/src", "apps/api/tests"]
 explicit_package_bases = true
 files = ["apps/api/src", "apps/api/tests", "apps/api/migrations", "apps/worker/src", "apps/worker/tests"]
 
@@ -48,4 +52,5 @@ warn_required_dynamic_aliases = true
 
 [tool.pytest]
 testpaths = ["apps/api/tests", "apps/worker/tests"]
+pythonpath = ["apps/api/tests"]
 addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config"]
