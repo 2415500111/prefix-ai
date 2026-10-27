@@ -16,6 +16,7 @@ type AppEnv = Literal["development", "test", "staging", "production"]
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 type LogFormat = Literal["json", "console"]
 type MessagingProvider = Literal["console"]
+type EmbeddingProviderName = Literal["local"]
 
 _PLACEHOLDER_SECRET_MARKER = "change-me"
 _DEV_KEY_ID_PREFIX = "dev"
@@ -63,6 +64,7 @@ class Settings(BaseSettings):
     pii_blind_index_key: SecretStr = Field(min_length=32)
 
     messaging_provider: MessagingProvider = "console"
+    embedding_provider: EmbeddingProviderName = "local"
 
     @field_validator("cors_origins", mode="before")
     @classmethod
