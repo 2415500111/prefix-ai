@@ -40,6 +40,16 @@ def list_procedure_types(session: Session, organization_id: uuid.UUID) -> list[P
     )
 
 
+def get_procedure_type(
+    session: Session, organization_id: uuid.UUID, procedure_type_id: uuid.UUID
+) -> ProcedureType | None:
+    return session.scalar(
+        select(ProcedureType).where(
+            ProcedureType.id == procedure_type_id, ProcedureType.organization_id == organization_id
+        )
+    )
+
+
 def get_procedure_type_by_code(
     session: Session, organization_id: uuid.UUID, code: str
 ) -> ProcedureType | None:

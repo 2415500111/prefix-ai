@@ -140,3 +140,11 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
 - **Tenant isolation:** the organization comes only from the token, never from the request body. A record in another organization returns 404.
 - **Audit (safety rule d):** services write audit rows in the same transaction as the access. The DB session commits *before* the response is sent. A middleware backstop logs an error and writes a generic audit row if a patient-data route ever succeeds without one.
 - **PII at rest:** see Patient above. Keys come from `PII_ENCRYPTION_KEYS` (rotation supported) and `PII_BLIND_INDEX_KEY`. Development keys are rejected in production.
+
+## 5. Protocol Engine (safety rule a)
+
+- **Versions.** A protocol is a family of immutable versions (`family_id` + `version`). Only a DRAFT can change. Editing an APPROVED or RETIRED version creates the next DRAFT, and a family has at most one draft at a time.
+- **Approval.** Only CLINICIAN and ADMIN roles can approve. A draft needs at least one step. Approving embeds every step (`EmbeddingProvider`; default `local-hashing-v1`, offline and deterministic) and retires the family's previously approved version. SAMPLE protocols (`is_sample`) need an explicit `acknowledge_sample`.
+- **Database guards (migration 0003).** Triggers reject any change to an approved or retired version other than APPROVED → RETIRED, reject deleting such versions, reject edits to their steps, and reject any `patient_timeline_event` that points at a step of a non-approved protocol. This holds even if application code is bypassed.
+- **Conditions.** Each step can carry a JSON rule (`all`, `any`, `not`, `flag`, `missing`, `compare`) over whitelisted patient fields. It is validated on save and evaluated without `eval` (`domain/conditions.py`). `applicable_steps()` raises if given a non-approved protocol.
+- **Web.** `/dashboard/protocols` (list), `/new`, `/[id]` (steps in time order, versions, approve) and `/[id]/edit` (step builder). Staff sessions use the backend-for-frontend pattern: tokens live in httpOnly cookies set by Server Actions, and `src/proxy.ts` refreshes them before expiry.

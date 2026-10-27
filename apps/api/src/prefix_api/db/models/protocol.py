@@ -2,6 +2,7 @@ import datetime as dt
 import uuid
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -19,6 +20,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from prefix_api.db.base import Base, TenantScoped, Timestamps, UUIDPrimaryKey
 from prefix_api.db.types import str_enum
 from prefix_api.domain.enums import ProtocolStatus, StepCategory
+
+EMBEDDING_DIMENSIONS = 384
 
 
 class PrepProtocol(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
@@ -80,5 +83,8 @@ class PrepStep(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     is_critical: Mapped[bool] = mapped_column(Boolean, default=False)
     # Applicability rule evaluated against patient condition flags; null = always applies.
     conditions: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Set when the protocol is approved; used to retrieve steps for the AI Prep Assistant.
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIMENSIONS))
+    embedding_model: Mapped[str | None] = mapped_column(String(64))
 
     protocol: Mapped[PrepProtocol] = relationship(back_populates="steps")

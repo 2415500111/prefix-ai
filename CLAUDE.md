@@ -75,6 +75,7 @@ Each log entry records who (user/service), what (entity and id), action (read/cr
 ## Git workflow
 
 - **One branch per phase:** `phase-<n>-<short-name>` (e.g. `phase-2-data-model-auth`), created from an up-to-date `main`. Never commit directly to `main`; the pre-commit hook enforces this.
+- **Back up continuously:** push the phase branch to `origin` at least after every completed plan item (and whenever stopping work), so work in progress is always backed up on GitHub. Pushing a phase branch never merges it; `main` only changes on phase completion.
 - **Small Conventional Commits:** `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:` (an optional scope is fine, e.g. `feat(api): ...`).
 - **Definition of done:** a phase is complete ONLY when lint, type-check, all tests, and `docker compose build` pass. Show the results to the user.
 - **CI is the gate.** `.github/workflows/ci.yml` runs on every push to `main` and `phase-*` and on pull requests: ruff, mypy, pytest, ESLint, tsc, Prettier, Vitest, the Next.js build, `docker compose build`, and a compose smoke test (`up --wait`, migrations, health checks). The dev machine has no Docker, so the Docker checks run only in CI. If Docker is installed locally later, run them locally too.

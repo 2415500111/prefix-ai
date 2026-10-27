@@ -5,6 +5,7 @@ Idempotent: re-running leaves existing rows alone. Refuses to run in production.
 
 import os
 import secrets
+import uuid
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -14,9 +15,17 @@ from prefix_api.core.config import get_settings
 from prefix_api.core.crypto import configure_crypto
 from prefix_api.core.logging import configure_logging, get_logger
 from prefix_api.core.security import hash_password
-from prefix_api.db.models import Facility, Organization, ProcedureType, User
+from prefix_api.db.models import (
+    Facility,
+    Organization,
+    PrepProtocol,
+    PrepStep,
+    ProcedureType,
+    User,
+)
 from prefix_api.db.session import create_db_engine, create_session_factory
-from prefix_api.domain.enums import Role
+from prefix_api.domain.enums import ProtocolStatus, Role
+from prefix_api.sample_protocols import SAMPLE_PROTOCOLS
 
 DEMO_ORG_SLUG = "demo-hospital"
 DEMO_ADMIN_EMAIL = "admin@demo-hospital.example.com"
@@ -69,6 +78,9 @@ def seed(session: Session) -> str | None:
                 )
             )
 
+    session.flush()
+    _seed_sample_protocols(session, org)
+
     password: str | None = None
     if session.scalar(select(User).where(User.email == DEMO_ADMIN_EMAIL)) is None:
         password = os.environ.get("SEED_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
@@ -83,6 +95,50 @@ def seed(session: Session) -> str | None:
         )
     session.commit()
     return password
+
+
+def _seed_sample_protocols(session: Session, org: Organization) -> None:
+    """Create each SAMPLE protocol as a DRAFT; clinicians must review and approve them."""
+    existing = set(
+        session.scalars(select(PrepProtocol.name).where(PrepProtocol.organization_id == org.id))
+    )
+    for sample in SAMPLE_PROTOCOLS:
+        if sample.name in existing:
+            continue
+        procedure_type = session.scalar(
+            select(ProcedureType).where(
+                ProcedureType.organization_id == org.id,
+                ProcedureType.code == sample.procedure_code,
+            )
+        )
+        if procedure_type is None:
+            continue
+        session.add(
+            PrepProtocol(
+                organization_id=org.id,
+                family_id=uuid.uuid7(),
+                version=1,
+                procedure_type_id=procedure_type.id,
+                name=sample.name,
+                description=sample.description,
+                status=ProtocolStatus.DRAFT,
+                is_sample=True,
+                steps=[
+                    PrepStep(
+                        organization_id=org.id,
+                        sort_order=index,
+                        offset_minutes=step.offset_minutes,
+                        title=step.title,
+                        instruction_text=step.instruction_text,
+                        category=step.category,
+                        requires_confirmation=step.requires_confirmation,
+                        is_critical=step.is_critical,
+                        conditions=step.conditions,
+                    )
+                    for index, step in enumerate(sample.steps)
+                ],
+            )
+        )
 
 
 def main() -> None:
