@@ -23,6 +23,7 @@ from prefix_api.routers import (
     patient_portal,
     patients,
     protocols,
+    webhooks,
 )
 
 
@@ -75,4 +76,5 @@ def create_app(
     app.include_router(patient_portal.router)
     app.include_router(protocols.router)
     app.include_router(appointments.router)
+    app.include_router(webhooks.router)
     return app
