@@ -64,6 +64,27 @@ Each log entry records who (user/service), what (entity and id), action (read/cr
 - Config comes from environment variables (validated with Pydantic Settings). Secrets are never committed.
 - Database changes go through Alembic migrations only.
 
+## Repository mechanics
+
+- Python packages form a **uv workspace** (root `pyproject.toml`, single `uv.lock`); `apps/worker` depends on `apps/api` and reuses its settings, logging, and (later) services and models. JS packages form a **pnpm workspace**. Run all commands from the repo root.
+- `make test` and `make lint` must pass before a phase is ticked off. Docker targets: `make up`, `make migrate`, `make seed`.
+- The API is built by `prefix_api.main:create_app` (uvicorn `--factory`). Nothing reads settings at import time except `prefix_worker.celery_app`.
+- Version constraints: TypeScript is held at 6.0.x and ESLint at 9.x until `typescript-eslint` and `eslint-plugin-react` (via `eslint-config-next`) support newer versions.
+- Next.js 16 has breaking changes from older versions. Read `apps/web/AGENTS.md` and the bundled docs in `node_modules/next/dist/docs/` before writing web code.
+
+## Git workflow
+
+- **One branch per phase:** `phase-<n>-<short-name>` (e.g. `phase-2-data-model-auth`), created from an up-to-date `main`. Never commit directly to `main`; the pre-commit hook enforces this.
+- **Small Conventional Commits:** `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:` (an optional scope is fine, e.g. `feat(api): ...`).
+- **Definition of done:** a phase is complete ONLY when lint, type-check, all tests, and `docker compose build` pass. Show the results to the user.
+- **On completion:**
+  1. Update PROGRESS.md: tick the phase, add the completion date and a 2–3 line summary.
+  2. Merge into `main` with `git merge --no-ff`.
+  3. Create an annotated tag: `git tag -a v0.<n>.0 -m "Phase <n>: <name>"`.
+  4. `git push origin main --tags`, then push the phase branch.
+- **If anything fails, never merge or push to `main`.** Fix it first.
+- **Before every commit**, check that no secrets, `.env` files, keys, real patient data, or database dumps are staged (`git diff --cached --name-only`). The `forbid-sensitive-files` and `detect-secrets` pre-commit hooks back this up. When a new false positive appears, review it, then add it to `.secrets.baseline` with `is_secret: false`.
+
 ## Working agreement
 
 - The build proceeds in 12 phases, tracked in [PROGRESS.md](PROGRESS.md). Phases are defined one at a time.

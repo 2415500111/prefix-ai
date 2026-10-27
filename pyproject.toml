@@ -1,0 +1,51 @@
+# uv workspace root for the Python apps; holds shared dev tooling and config only.
+[tool.uv.workspace]
+members = ["apps/api", "apps/worker"]
+
+[dependency-groups]
+dev = [
+    "celery-types>=0.26.0",
+    "detect-secrets>=1.5.0",
+    "httpx2>=2.16.0",
+    "mypy>=2.4.0",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+src = ["apps/api/src", "apps/worker/src"]
+extend-exclude = ["apps/web", "packages", "node_modules"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RET", "PT", "S",
+  "ASYNC", "DTZ", "T20", "PTH", "TID", "RUF",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106"]
+"apps/api/migrations/**" = ["N999"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+mypy_path = ["apps/api/src", "apps/worker/src"]
+explicit_package_bases = true
+files = ["apps/api/src", "apps/api/tests", "apps/api/migrations", "apps/worker/src", "apps/worker/tests"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest]
+testpaths = ["apps/api/tests", "apps/worker/tests"]
+addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config"]

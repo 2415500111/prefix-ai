@@ -1,0 +1,178 @@
+# Local development stack. Start with `make up`; see README.md.
+name: prefix-ai
+
+x-python-service: &python-service
+  env_file:
+    - path: .env
+      required: true
+  environment:
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-prefix}:${POSTGRES_PASSWORD:-prefix}@postgres:5432/${POSTGRES_DB:-prefix}
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-prefix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prefix}
+      POSTGRES_DB: ${POSTGRES_DB:-prefix}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18+ images keep data under /var/lib/postgresql/<major>/docker.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    <<: *python-service
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: prefix-ai/api:dev
+    command:
+      - uvicorn
+      - prefix_api.main:create_app
+      - --factory
+      - --host=0.0.0.0
+      - --port=8000
+      - --no-access-log
+      - --reload
+      - --reload-dir=/app/apps/api/src
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app/apps/api
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    <<: *python-service
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: prefix-ai/worker:dev
+    command:
+      [
+        "celery",
+        "--app",
+        "prefix_worker.celery_app",
+        "worker",
+        "--loglevel",
+        "INFO",
+      ]
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./apps/worker:/app/apps/worker
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'celery --app prefix_worker.celery_app inspect ping --destination "celery@$${HOSTNAME}" --timeout 5',
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+
+  celery-beat:
+    <<: *python-service
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: prefix-ai/worker:dev
+    depends_on:
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    command:
+      - celery
+      - --app
+      - prefix_worker.celery_app
+      - beat
+      - --loglevel=INFO
+      - --pidfile=/tmp/celerybeat.pid
+      - --schedule=/tmp/celerybeat-schedule
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./apps/worker:/app/apps/worker
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'test -f /tmp/celerybeat.pid && kill -0 "$$(cat /tmp/celerybeat.pid)"',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: prefix-ai/web:dev
+    # Only public settings: the web container never sees backend secrets.
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./packages/shared:/app/packages/shared
+      # Keep the image's dependencies and build cache instead of the host's.
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
