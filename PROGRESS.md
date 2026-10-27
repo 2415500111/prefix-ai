@@ -5,8 +5,8 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 ## Resume point
 
 **Status:** Phases 0–2 merged and pushed to https://github.com/2415500111/prefix-ai. Phase 3 in progress on `phase-3-protocol-engine` (pushed, not merged).
-**Phase 3 done so far:** plan items 1 (condition evaluator), 3 (migration 0003) and 4 (embedding provider); item 2 (protocol service/API) is written but its tests are pending.
-**Next:** protocol service tests (item 7), sample protocol seed (item 5), web login + `/dashboard/protocols` (item 6).
+**Phase 3 done so far:** plan items 1 (condition evaluator), 2 (protocol service/API, 28 tests incl. DB trigger guards), 3 (migration 0003) and 4 (embedding provider).
+**Next:** sample protocol seed (item 5), then web login + `/dashboard/protocols` (item 6).
 
 **Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 
