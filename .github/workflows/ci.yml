@@ -94,6 +94,8 @@ jobs:
           curl --fail --silent --show-error http://localhost:8000/health
           curl --fail --silent --show-error http://localhost:3000/api/health
           curl --fail --silent --show-error -X POST http://localhost:8000/auth/login             -H 'Content-Type: application/json'             -d '{"email":"admin@demo-hospital.example.com","password":"ci-smoke-password"}'             | grep -q access_token
+          curl --fail --silent --show-error http://localhost:3000/login | grep -q "Sign in to Prefix AI"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code} %{redirect_url}' http://localhost:3000/dashboard/protocols)" = "307 http://localhost:3000/login"
       - name: Service status and logs on failure
         if: failure()
         run: |
