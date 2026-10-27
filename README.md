@@ -51,6 +51,33 @@ make health             # checks both health endpoints
 
 `make up` waits until every container's healthcheck passes. `make ps` shows their status, and `make logs` follows the logs. The API, worker, and web containers mount the source code, so edits reload automatically.
 
+## Run without Docker (e.g. Windows without WSL2)
+
+Needs Python 3.12+ (for `pip`), Node.js 24 and git. Run these from the repo root in PowerShell.
+
+```powershell
+py -m pip install uv                       # once: Python package/project manager
+Copy-Item .env.example .env                # once (skip if .env exists)
+
+# Local PostgreSQL + pgvector (no Docker). Data in .devdb/; writes DATABASE_URL into .env.
+# Re-run after a reboot (the port can change).
+uv run --no-project --python 3.12 --with pgserver python scripts/dev_postgres.py
+
+uv sync                                     # Python dependencies
+uv run alembic -c apps/api/alembic.ini upgrade head
+$env:SEED_ADMIN_PASSWORD = "Demo-Prefix-2026!"   # pick any password
+uv run python -m prefix_api.seed           # demo org, admin, SAMPLE protocols
+
+# Terminal 1: API on http://localhost:8000
+uv run uvicorn prefix_api.main:create_app --factory --reload --port 8000
+
+# Terminal 2: web app on http://localhost:3000
+corepack pnpm install
+corepack pnpm dev
+```
+
+Open http://localhost:3000/login and sign in as `admin@demo-hospital.example.com` with the password you chose. Then open **Protocols**. The seed only sets the password when it first creates the admin.
+
 ## Native development (without Docker for the apps)
 
 ```bash
@@ -93,6 +120,19 @@ The full API is browsable at http://localhost:8000/docs. The security model (rol
 ## Tests
 
 Python tests run against a real PostgreSQL with pgvector. Start one with `docker compose up -d postgres`; the `prefix_test` database is created and migrated automatically. To use another server, set `TEST_DATABASE_URL`. CI runs the same tests against Postgres 18.
+
+## Reminders and messaging
+
+Booking an appointment (`POST /appointments`) builds the patient's prep timeline from the approved protocol. The `celery-beat` service runs the reminder dispatcher every minute. With `MESSAGING_PROVIDER=console` (the default), reminders are only logged, with the recipient masked. Set `MESSAGING_PROVIDER=live` plus the Twilio and SMTP values in `.env` to really send. Point your Twilio number's incoming-message webhook to `<PUBLIC_API_BASE_URL>/webhooks/twilio`. Patients must have messaging consent recorded before anything is sent.
+
+Without Docker, run the worker and scheduler in two more terminals:
+
+```powershell
+uv run celery --app prefix_worker.celery_app worker --loglevel INFO --pool solo
+uv run celery --app prefix_worker.celery_app beat --loglevel INFO
+```
+
+These need Redis at `REDIS_URL`.
 
 ## Configuration
 

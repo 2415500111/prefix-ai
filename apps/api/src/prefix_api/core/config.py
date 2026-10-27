@@ -15,7 +15,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 type AppEnv = Literal["development", "test", "staging", "production"]
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 type LogFormat = Literal["json", "console"]
-type MessagingProvider = Literal["console"]
+type MessagingProvider = Literal["console", "live"]
 type EmbeddingProviderName = Literal["local"]
 
 _PLACEHOLDER_SECRET_MARKER = "change-me"
@@ -63,7 +63,22 @@ class Settings(BaseSettings):
     pii_encryption_keys: Annotated[list[SecretStr], NoDecode] = Field(min_length=1)
     pii_blind_index_key: SecretStr = Field(min_length=32)
 
+    # console: log messages instead of sending. live: Twilio for SMS/WhatsApp, SMTP for email.
     messaging_provider: MessagingProvider = "console"
+    twilio_account_sid: str | None = None
+    twilio_auth_token: SecretStr | None = None
+    twilio_sms_from: str | None = None
+    twilio_whatsapp_from: str | None = None
+    # Public URL Twilio calls for inbound messages; used to verify webhook signatures.
+    public_api_base_url: AnyHttpUrl = AnyHttpUrl("http://localhost:8000")
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from: str | None = None
+    smtp_starttls: bool = True
+    dispatch_batch_size: int = Field(default=100, ge=1, le=1000)
+    translation_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
     embedding_provider: EmbeddingProviderName = "local"
 
     @field_validator("cors_origins", mode="before")
@@ -73,12 +88,38 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
+    @field_validator(
+        "anthropic_api_key",
+        "twilio_account_sid",
+        "twilio_auth_token",
+        "twilio_sms_from",
+        "twilio_whatsapp_from",
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
+        "smtp_from",
+        mode="before",
+    )
+    @classmethod
+    def _empty_means_unset(cls, value: object) -> object:
+        return None if value == "" else value
+
     @field_validator("pii_encryption_keys", mode="before")
     @classmethod
     def _split_pii_keys(cls, value: object) -> object:
         if isinstance(value, str):
             return [entry.strip() for entry in value.split(",") if entry.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _live_messaging_needs_credentials(self) -> Self:
+        if self.messaging_provider == "live" and not (
+            self.twilio_account_sid and self.twilio_auth_token
+        ):
+            raise ValueError(
+                "MESSAGING_PROVIDER=live needs TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN"
+            )
+        return self
 
     @model_validator(mode="after")
     def _reject_development_secrets_in_production(self) -> Self:

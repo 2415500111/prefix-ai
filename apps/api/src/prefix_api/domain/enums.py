@@ -72,6 +72,8 @@ class StepCategory(StrEnum):
 
 class TimelineEventStatus(StrEnum):
     PENDING = "PENDING"
+    # Claimed by a dispatcher; a reminder is being sent. Never re-sent automatically.
+    SENDING = "SENDING"
     SENT = "SENT"
     CONFIRMED = "CONFIRMED"
     MISSED = "MISSED"

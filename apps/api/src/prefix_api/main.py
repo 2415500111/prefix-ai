@@ -15,7 +15,16 @@ from prefix_api.core.middleware import (
     request_context_middleware,
 )
 from prefix_api.db.session import SessionFactory, create_db_engine, create_session_factory
-from prefix_api.routers import admin, auth, health, patient_portal, patients, protocols
+from prefix_api.routers import (
+    admin,
+    appointments,
+    auth,
+    health,
+    patient_portal,
+    patients,
+    protocols,
+    webhooks,
+)
 
 
 def create_app(
@@ -66,4 +75,6 @@ def create_app(
     app.include_router(patients.router)
     app.include_router(patient_portal.router)
     app.include_router(protocols.router)
+    app.include_router(appointments.router)
+    app.include_router(webhooks.router)
     return app

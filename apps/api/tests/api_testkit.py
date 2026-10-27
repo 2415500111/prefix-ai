@@ -3,6 +3,8 @@
 import base64
 import datetime as dt
 import os
+import uuid
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -10,8 +12,16 @@ from sqlalchemy.orm import Session
 from prefix_api.core.config import Settings
 from prefix_api.core.crypto import get_blind_indexer, normalize_email, normalize_phone
 from prefix_api.core.security import hash_password, issue_access_token, issue_patient_token
-from prefix_api.db.models import Facility, Organization, Patient, ProcedureType, User
-from prefix_api.domain.enums import Role
+from prefix_api.db.models import (
+    Facility,
+    Organization,
+    Patient,
+    PrepProtocol,
+    PrepStep,
+    ProcedureType,
+    User,
+)
+from prefix_api.domain.enums import ProtocolStatus, Role, StepCategory
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://prefix:prefix@localhost:5432/prefix_test"
@@ -40,6 +50,16 @@ def make_test_settings(**overrides: Any) -> Settings:
 
 def utcnow() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
+
+
+@dataclass(frozen=True)
+class StepSpec:
+    offset_minutes: int
+    title: str
+    is_critical: bool = False
+    requires_confirmation: bool = False
+    conditions: dict[str, Any] | None = None
+    category: StepCategory = StepCategory.DIET
 
 
 class Builder:
@@ -84,6 +104,44 @@ class Builder:
         self.session.add(procedure_type)
         self.session.flush()
         return procedure_type
+
+    def approved_protocol(
+        self,
+        org: Organization,
+        procedure_type: ProcedureType,
+        steps: list[StepSpec],
+        *,
+        name: str = "Prep",
+    ) -> PrepProtocol:
+        approver = self.user(org, Role.CLINICIAN)
+        protocol = PrepProtocol(
+            organization_id=org.id,
+            family_id=uuid.uuid7(),
+            version=1,
+            procedure_type_id=procedure_type.id,
+            name=name,
+            steps=[
+                PrepStep(
+                    organization_id=org.id,
+                    sort_order=index,
+                    offset_minutes=spec.offset_minutes,
+                    title=spec.title,
+                    instruction_text=f"Instruction for {spec.title}.",
+                    category=spec.category,
+                    is_critical=spec.is_critical,
+                    requires_confirmation=spec.requires_confirmation,
+                    conditions=spec.conditions,
+                )
+                for index, spec in enumerate(steps)
+            ],
+        )
+        self.session.add(protocol)
+        self.session.flush()
+        protocol.status = ProtocolStatus.APPROVED
+        protocol.approved_by_id = approver.id
+        protocol.approved_at = utcnow()
+        self.session.flush()
+        return protocol
 
     def user(self, org: Organization, role: Role = Role.ADMIN, *, active: bool = True) -> User:
         user = User(

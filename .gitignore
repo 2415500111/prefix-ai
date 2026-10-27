@@ -49,3 +49,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Local Postgres data from scripts/dev_postgres.py
+.devdb/
