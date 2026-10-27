@@ -15,32 +15,27 @@ from prefix_api.core.crypto import get_blind_indexer, normalize_phone
 from prefix_api.db.models import (
     Appointment,
     CheckIn,
-    Escalation,
     Message,
     Patient,
     PatientTimelineEvent,
     PrepStep,
-    Task,
 )
 from prefix_api.domain.enums import (
-    AppointmentStatus,
     AuditAction,
     CheckInResponse,
     CheckInStatus,
-    EscalationSeverity,
-    EscalationSource,
     MessageChannel,
     MessageDirection,
     MessageStatus,
     TaskType,
-    TimelineEventStatus,
 )
 from prefix_api.domain.principal import SystemPrincipal
 from prefix_api.domain.replies import parse_reply
 from prefix_api.services.audit import record_audit
+from prefix_api.services.check_ins import create_task, record_answer
 
 JOB = "inbound_messages"
-TASK_DUE = dt.timedelta(hours=2)
+PURPOSE = "patient_reply"
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,125 +104,37 @@ def handle_inbound_message(
         entity_type="message",
         entity_id=message.id,
         patient_id=patient.id,
-        purpose="patient_reply",
+        purpose=PURPOSE,
         details={"status": response.value},
     )
 
     if check_in is None or response is CheckInResponse.OTHER:
-        _task(
+        create_task(
             session,
-            patient,
-            check_in.appointment_id if check_in else None,
-            TaskType.NURSE_REVIEW,
-            "Read a message from the patient",
-            now,
+            patient=patient,
+            appointment_id=check_in.appointment_id if check_in else None,
+            task_type=TaskType.NURSE_REVIEW,
+            title="Read a message from the patient",
+            now=now,
         )
         return InboundResult(matched_patient=True, response=response, check_in_id=None)
 
-    check_in.status = CheckInStatus.ANSWERED
-    check_in.response = response
-    check_in.answered_at = now
     event = (
         session.get(PatientTimelineEvent, check_in.timeline_event_id)
         if check_in.timeline_event_id
         else None
     )
-    step = session.get(PrepStep, event.step_id) if event else None
-    appointment = session.get(Appointment, check_in.appointment_id)
-
-    if response is CheckInResponse.YES and event is not None:
-        event.status = TimelineEventStatus.CONFIRMED
-        event.confirmed_at = now
-    elif response is CheckInResponse.NO:
-        if step is not None and step.is_critical and appointment is not None:
-            _escalate(
-                session,
-                patient,
-                appointment,
-                EscalationSeverity.HIGH,
-                f"Patient replied NO to a critical prep step: {step.title}",
-                now,
-            )
-            if appointment.status is not AppointmentStatus.CANCELLED:
-                appointment.status = AppointmentStatus.AT_RISK
-        _task(
-            session,
-            patient,
-            check_in.appointment_id,
-            TaskType.CALL_PATIENT,
-            f"Patient cannot complete: {step.title if step else check_in.question}",
-            now,
-        )
-    elif response is CheckInResponse.HELP and appointment is not None:
-        _escalate(
-            session,
-            patient,
-            appointment,
-            EscalationSeverity.NORMAL,
-            "Patient asked for help by message",
-            now,
-        )
-        _task(
-            session, patient, appointment.id, TaskType.NURSE_REVIEW, "Patient asked for help", now
-        )
-
-    record_audit(
+    record_answer(
         session,
         principal=principal,
-        action=AuditAction.UPDATE,
-        entity_type="check_in",
-        entity_id=check_in.id,
-        patient_id=patient.id,
-        purpose="patient_reply",
-        details={"status": response.value},
+        patient=patient,
+        appointment=session.get(Appointment, check_in.appointment_id),
+        check_in=check_in,
+        event=event,
+        step=session.get(PrepStep, event.step_id) if event else None,
+        response=response,
+        via="by message",
+        purpose=PURPOSE,
+        now=now,
     )
     return InboundResult(matched_patient=True, response=response, check_in_id=check_in.id)
-
-
-def _escalate(
-    session: Session,
-    patient: Patient,
-    appointment: Appointment,
-    severity: EscalationSeverity,
-    summary: str,
-    now: dt.datetime,
-) -> None:
-    escalation = Escalation(
-        organization_id=patient.organization_id,
-        patient_id=patient.id,
-        appointment_id=appointment.id,
-        source=EscalationSource.PATIENT_REPORTED_PROBLEM,
-        severity=severity,
-        summary=summary,
-    )
-    session.add(escalation)
-    session.flush()
-    record_audit(
-        session,
-        principal=SystemPrincipal(organization_id=patient.organization_id, job=JOB),
-        action=AuditAction.CREATE,
-        entity_type="escalation",
-        entity_id=escalation.id,
-        patient_id=patient.id,
-        purpose="patient_reply",
-    )
-
-
-def _task(
-    session: Session,
-    patient: Patient,
-    appointment_id: uuid.UUID | None,
-    task_type: TaskType,
-    title: str,
-    now: dt.datetime,
-) -> None:
-    session.add(
-        Task(
-            organization_id=patient.organization_id,
-            type=task_type,
-            title=title[:300],
-            appointment_id=appointment_id,
-            patient_id=patient.id,
-            due_at=now + TASK_DUE,
-        )
-    )
