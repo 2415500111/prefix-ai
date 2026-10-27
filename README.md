@@ -78,6 +78,20 @@ The Python apps read `.env` from the current directory. That is why commands run
 | `make format` | Auto-fix with ruff and Prettier |
 | `make help` | List every target |
 
+## Logging in (development)
+
+`make seed` creates **Demo Hospital** with one facility, four procedure types, and an admin `admin@demo-hospital.example.com`. The admin's password is printed once; set `SEED_ADMIN_PASSWORD` to choose it. Then:
+
+```bash
+curl -X POST localhost:8000/auth/login -H 'Content-Type: application/json'   -d '{"email":"admin@demo-hospital.example.com","password":"<printed password>"}'
+```
+
+The full API is browsable at http://localhost:8000/docs. The security model (roles, patient magic links, audit logging, PII encryption) is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#4-security-model).
+
+## Tests
+
+Python tests run against a real PostgreSQL with pgvector. Start one with `docker compose up -d postgres`; the `prefix_test` database is created and migrated automatically. To use another server, set `TEST_DATABASE_URL`. CI runs the same tests against Postgres 18.
+
 ## Configuration
 
 All settings come from environment variables. Each one is documented in [.env.example](.env.example). The API validates them on startup with pydantic-settings and refuses to start if a required value is missing or invalid. For example, `LLM_MODEL` must be set, `JWT_SECRET` must be at least 32 characters, and the placeholder secret is rejected in production.

@@ -109,31 +109,34 @@ Every step that reads or writes patient data writes an `AuditLog` entry from the
 
 ## 3. Main database entities
 
+Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every tenant table carries `organization_id`, and every repository query filters on it. Primary keys are UUIDv7. Enums are stored as `VARCHAR` with `CHECK` constraints, so adding a value is a simple migration.
+
 | Entity | Purpose / key fields |
 |---|---|
-| **Organization** | Hospital/tenant. Name, region (US/IN), compliance settings, timezone. |
-| **Site / Department** | Location and department within an organisation. |
-| **User** | Staff account. Role (admin, coordinator, nurse, clinician), org. |
-| **Patient** | Demographics (PHI, encrypted), preferred language, contact channels, external EHR ids. |
-| **Consent** | Patient, purpose, channel, granted/withdrawn timestamps, legal basis (HIPAA/DPDP). |
-| **ProcedureType** | e.g. colonoscopy, CT with contrast, lap chole. Default protocol mapping. |
-| **Protocol** | Logical protocol (per org + procedure type). |
-| **ProtocolVersion** | Immutable versioned content, status (draft/approved/retired), approved_by, approved_at. |
-| **ProtocolStep** | Instruction text, offset from procedure time, conditions, category (diet, medication, logistics), check-in required flag. |
-| **ProtocolChunk** | Text chunk + pgvector embedding for grounded retrieval by the assistant. |
-| **Procedure** | Patient, procedure type, scheduled datetime, site, clinician, status, external appointment id. |
-| **PrepTimeline** | Procedure + the ProtocolVersion it was generated from. |
-| **TimelineStep** | Resolved step with due datetime, localised text, completion status. |
-| **Reminder** | Timeline step, channel, scheduled/sent/delivered/failed status. |
-| **CheckIn / CheckInResponse** | Milestone question, sent time, patient answer, answered time. |
-| **Conversation / Message** | Assistant chat history (stored encrypted; redacted copy is what the LLM sees). |
-| **Escalation** | Source (red-flag, out-of-scope, risk), severity, assigned nurse, status, resolution notes. |
-| **RiskScore** | Procedure, probability, top factors, model version, computed_at. |
-| **CoordinatorTask** | Procedure, type, assignee, due, status. |
-| **WaitlistEntry** | Patient, procedure type, earliest date, readiness constraints, priority. |
-| **SlotOffer** | Released slot, waitlist entry, offered/accepted/expired status. |
-| **ProcedureOutcome** | Completed / cancelled, cancellation reason, prep-related flag. Ground truth for analytics and model training. |
-| **IntegrationJob** | FHIR/CSV sync run, status, counts, errors. |
-| **AuditLog** | Append-only: actor, action, entity type/id, purpose, timestamp, IP/user agent, request id. |
+| **Organization** | Tenant (hospital or group). Name, slug, country, default timezone. |
+| **Facility** | Site within an org. Name, IANA timezone (timelines are computed in it), address, maps link. |
+| **User** (`app_user`) | Staff account. Email (globally unique), argon2 password hash, role: ADMIN, COORDINATOR, NURSE, CLINICIAN, VIEWER. |
+| **RefreshToken** | SHA-256 hash of an opaque refresh token. Rotates on each use; a `family_id` lets reuse of a rotated token revoke the whole login. |
+| **Patient** | **Encrypted** first/last name, DOB, phone, email, MRN (AES-256-GCM, column-bound). HMAC blind indexes for exact lookup by phone/email/MRN. Preferred language and channel, messaging consent and its timestamp, and condition flags (anticoagulant, insulin, GLP-1, contrast allergy, eGFR, metal implant). |
+| **PatientMagicLink** | Hash of a single-use patient login token, its expiry and when it was used. |
+| **ProcedureType** | Code, name, default duration, OR cost per minute, sedation flag. |
+| **Appointment** | Patient, facility, procedure type, clinician, approved protocol version, scheduled/arrival time, status (SCHEDULED/READY/AT_RISK/CANCELLED/COMPLETED), cancellation reason (prep-related reasons are flagged in code). |
+| **PrepProtocol** | One immutable version (`family_id` + `version`). Status DRAFT/APPROVED/RETIRED. A DB CHECK requires an approver and approval time on APPROVED rows. `is_sample` marks seeded examples. |
+| **PrepStep** | Offset in minutes before the procedure, title, instruction text, category (DIET/FASTING/MEDICATION/BOWEL_PREP/LAB/LOGISTICS/PAPERWORK), requires_confirmation, is_critical, `conditions` JSON. |
+| **PatientTimelineEvent** | One step scheduled for one appointment (unique per appointment+step, which makes sending idempotent). Due/send times and status. |
+| **CheckIn** | Milestone question, status, YES/NO/HELP/OTHER response, and encrypted free-text reply. |
+| **Message** | Inbound/outbound message on SMS/WhatsApp/email/portal. Encrypted body, plus the encrypted approved original whenever the body is a translation of it. |
+| **RiskScore** | 0–100 score, LOW/MEDIUM/HIGH, readable factors JSON, model version. |
+| **WaitlistEntry** | Patient, procedure type, optional facility, date window, prep already done, priority, status. |
+| **Escalation** | Source (red flag, out of protocol, patient-reported problem, high risk, staff), severity, status, encrypted summary and resolution note, assignee. |
+| **Task** | Coordinator/nurse work item: type, status, assignee, due time, links to appointment, patient or escalation. |
+| **AuditLog** | Append-only (DB trigger rejects UPDATE/DELETE/TRUNCATE). Actor type and id, action, entity, patient id, purpose, IP, user agent, request id, and PHI-free details. No foreign keys, so it outlives the records it describes. |
 
-Key relationships: `Organization 1─* Patient 1─* Procedure 1─1 PrepTimeline 1─* TimelineStep 1─* Reminder`; `Protocol 1─* ProtocolVersion 1─* ProtocolStep`; `Procedure 1─* RiskScore`, `Procedure 1─* Escalation`, `Procedure 1─0..1 ProcedureOutcome`.
+## 4. Security model
+
+- **Staff auth:** email + password (argon2id) → 15-minute JWT access token + rotating opaque refresh token. Every request re-checks that the user is active and that their role hasn't changed.
+- **RBAC:** `domain/permissions.py` maps roles to permissions. Routers reject early with `require(Permission)`, and services check again. VIEWER has no access to patient-level data.
+- **Patient auth:** staff issue a single-use magic link. The token sits in the URL **fragment**, so it never reaches server logs, and is redeemed in a POST body for a 12-hour patient session.
+- **Tenant isolation:** the organization comes only from the token, never from the request body. A record in another organization returns 404.
+- **Audit (safety rule d):** services write audit rows in the same transaction as the access. The DB session commits *before* the response is sent. A middleware backstop logs an error and writes a generic audit row if a patient-data route ever succeeds without one.
+- **PII at rest:** see Patient above. Keys come from `PII_ENCRYPTION_KEYS` (rotation supported) and `PII_BLIND_INDEX_KEY`. Development keys are rejected in production.
