@@ -2,6 +2,8 @@
 # Docker targets need Docker Compose v2; test/lint/format run natively and need uv + pnpm.
 
 COMPOSE := docker compose
+# Tests need Postgres: `docker compose up -d postgres` (the test database is created automatically).
+export TEST_DATABASE_URL ?= postgresql+psycopg://prefix:prefix@localhost:5432/prefix_test
 API_RUN := $(COMPOSE) run --rm api
 
 .DEFAULT_GOAL := help
