@@ -3,7 +3,7 @@
 import datetime as dt
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, Uuid
+from sqlalchemy import DateTime, ForeignKey, Index, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from prefix_api.db.base import Base, TenantScoped, Timestamps, UUIDPrimaryKey
@@ -19,10 +19,22 @@ from prefix_api.domain.enums import (
 
 
 class PatientTimelineEvent(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
-    """One protocol step scheduled for one appointment."""
+    """One protocol step scheduled for one appointment.
+
+    Rescheduling cancels the old events and creates new ones, so history is kept and each
+    event is sent at most once. Only one non-cancelled event may exist per step.
+    """
 
     __tablename__ = "patient_timeline_event"
-    __table_args__ = (UniqueConstraint("appointment_id", "step_id"),)
+    __table_args__ = (
+        Index(
+            "uq_patient_timeline_event_active_step",
+            "appointment_id",
+            "step_id",
+            unique=True,
+            postgresql_where=text("status <> 'CANCELLED'"),
+        ),
+    )
 
     appointment_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("appointment.id", ondelete="CASCADE"), index=True
@@ -42,10 +54,19 @@ class PatientTimelineEvent(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     )
     sent_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
     confirmed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(500))
 
 
 class CheckIn(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     __tablename__ = "check_in"
+    __table_args__ = (
+        Index(
+            "uq_check_in_timeline_event",
+            "timeline_event_id",
+            unique=True,
+            postgresql_where=text("timeline_event_id IS NOT NULL"),
+        ),
+    )
 
     appointment_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("appointment.id", ondelete="CASCADE"), index=True
@@ -72,6 +93,15 @@ class CheckIn(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
 
 class Message(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     __tablename__ = "message"
+    __table_args__ = (
+        # At most one reminder per timeline event: the database backstop for idempotent sends.
+        Index(
+            "uq_message_outbound_timeline_event",
+            "timeline_event_id",
+            unique=True,
+            postgresql_where=text("direction = 'OUTBOUND' AND timeline_event_id IS NOT NULL"),
+        ),
+    )
 
     patient_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("patient.id", ondelete="CASCADE"), index=True
