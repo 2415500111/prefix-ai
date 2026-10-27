@@ -86,6 +86,8 @@ The Python apps read `.env` from the current directory. That is why commands run
 curl -X POST localhost:8000/auth/login -H 'Content-Type: application/json'   -d '{"email":"admin@demo-hospital.example.com","password":"<printed password>"}'
 ```
 
+Or sign in at http://localhost:3000/login and open **Protocols**. `make seed` adds four **SAMPLE** protocols (colonoscopy, general surgery, CT with contrast, MRI) as drafts. They are examples only and must be reviewed and adapted by your clinical team before anyone approves them; the approve screen asks for that confirmation.
+
 The full API is browsable at http://localhost:8000/docs. The security model (roles, patient magic links, audit logging, PII encryption) is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#4-security-model).
 
 ## Tests
