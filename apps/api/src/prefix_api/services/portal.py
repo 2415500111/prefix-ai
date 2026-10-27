@@ -21,6 +21,7 @@ from prefix_api.db.models import (
     ProcedureType,
     Task,
 )
+from prefix_api.domain.calendar import CalendarEvent, to_ics
 from prefix_api.domain.enums import (
     AppointmentStatus,
     AuditAction,
@@ -185,6 +186,40 @@ class PortalService:
                 patient_id=patient.id,
                 purpose="patient_reschedule_request",
             )
+
+    def calendar(
+        self,
+        principal: PatientPrincipal,
+        appointment_id: uuid.UUID,
+        *,
+        portal_url: str,
+        now: dt.datetime,
+    ) -> str:
+        appointment = self._load_appointment(principal, appointment_id)
+        procedure = self._session.get_one(ProcedureType, appointment.procedure_type_id)
+        facility = self._session.get_one(Facility, appointment.facility_id)
+        record_audit(
+            self._session,
+            principal=principal,
+            action=AuditAction.EXPORT,
+            entity_type="appointment",
+            entity_id=appointment.id,
+            patient_id=principal.patient_id,
+            purpose="patient_calendar_download",
+        )
+        location = ", ".join(part for part in (facility.name, facility.address) if part)
+        return to_ics(
+            CalendarEvent(
+                appointment_id=appointment.id,
+                procedure_name=procedure.name,
+                starts_at=appointment.arrival_at or appointment.scheduled_at,
+                ends_at=appointment.scheduled_at
+                + dt.timedelta(minutes=appointment.duration_minutes),
+                location=location,
+                description=f"Your prep plan and checklist: {portal_url}",
+            ),
+            now=now,
+        )
 
     # -- helpers -------------------------------------------------------------------------
 

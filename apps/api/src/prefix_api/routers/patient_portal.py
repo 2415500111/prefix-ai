@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 
 from prefix_api.api.deps import CurrentPatient, DbSession, Now, SettingsDep, patient_data_route
 from prefix_api.schemas.patients import MagicLinkRedeem, PatientSelfOut, PatientSessionOut
@@ -75,3 +75,28 @@ def request_reschedule(
     now: Now,
 ) -> None:
     PortalService(session).request_reschedule(principal, appointment_id, note=body.note, now=now)
+
+
+@router.get(
+    "/appointments/{appointment_id}/calendar.ics",
+    response_class=Response,
+    responses={200: {"content": {"text/calendar": {}}}},
+    dependencies=patient_data,
+)
+def calendar(
+    appointment_id: uuid.UUID,
+    principal: CurrentPatient,
+    session: DbSession,
+    settings: SettingsDep,
+    now: Now,
+) -> Response:
+    portal_url = f"{str(settings.web_base_url).rstrip('/')}/p/home"
+    ics = PortalService(session).calendar(principal, appointment_id, portal_url=portal_url, now=now)
+    return Response(
+        content=ics,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="procedure.ics"',
+            "Cache-Control": "no-store",
+        },
+    )
