@@ -9,6 +9,7 @@ from prefix_api.db.session import SessionFactory, create_db_engine, create_sessi
 from prefix_api.services.dispatch import dispatch_due_reminders
 from prefix_api.services.messaging.base import MessagingProvider
 from prefix_api.services.messaging.providers import build_messaging_provider
+from prefix_api.services.step_translations import warm_step_translations
 from prefix_api.services.translation import Translator, build_translator
 
 logger = get_logger(__name__)
@@ -46,3 +47,10 @@ def dispatch_reminders() -> dict[str, int]:
         now=dt.datetime.now(dt.UTC),
         batch_size=get_settings().dispatch_batch_size,
     )
+
+
+@shared_task(name="prefix_worker.translations.warm", ignore_result=True)
+def warm_translations() -> dict[str, int]:
+    """Pre-translate approved steps for upcoming non-English patients, so the portal and
+    reminders can use them without waiting for the LLM."""
+    return warm_step_translations(_session_factory(), _translator(), now=dt.datetime.now(dt.UTC))

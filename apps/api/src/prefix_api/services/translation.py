@@ -52,11 +52,18 @@ class Translation:
 
 
 class Translator(Protocol):
+    @property
+    def name(self) -> str:
+        """Recorded with cached translations, e.g. the model that produced them."""
+        ...
+
     def translate(self, text: str, language: str) -> Translation: ...
 
 
 class PassthroughTranslator:
     """Used when no LLM is configured: always returns the approved text."""
+
+    name = "none"
 
     def translate(self, text: str, language: str) -> Translation:
         return Translation(text=text, translated=False)
@@ -70,6 +77,10 @@ class ClaudeTranslator:
         self._model = model
         # Approved step text repeats across patients; only successful translations are kept.
         self._cache: dict[tuple[str, str], str] = {}
+
+    @property
+    def name(self) -> str:
+        return self._model
 
     def translate(self, text: str, language: str) -> Translation:
         target = LANGUAGE_NAMES.get(language.split("-")[0])

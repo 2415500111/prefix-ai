@@ -37,6 +37,7 @@ from prefix_api.domain.enums import (
 from prefix_api.domain.principal import SystemPrincipal
 from prefix_api.services.audit import record_audit
 from prefix_api.services.messaging.base import MessagingError, MessagingProvider, OutboundMessage
+from prefix_api.services.step_translations import base_language, translate_step
 from prefix_api.services.translation import SOURCE_LANGUAGE, Translator
 
 logger = get_logger(__name__)
@@ -50,10 +51,21 @@ JOB = "reminder_dispatch"
 _E = PatientTimelineEvent
 
 
-def compose_reminder(step: PrepStep) -> str:
-    """Reminder text, built only from the clinician-approved step (safety rule a)."""
-    text = f"{step.title}\n{step.instruction_text}"
-    return f"{text}\n\n{CONFIRM_FOOTER}" if step.requires_confirmation else text
+# Fixed, human-written reply instructions; never machine-translated. The reply parser
+# understands both the English and the Hindi words.
+CONFIRM_FOOTERS = {
+    "en": CONFIRM_FOOTER,
+    "hi": (
+        "यह हो जाने पर YES (हाँ) लिखकर जवाब दें, न कर पाएँ तो NO (नहीं), "
+        "या अपनी देखभाल टीम से बात करने के लिए HELP (मदद)।"
+    ),
+}
+
+
+def compose_reminder(title: str, instruction: str, *, footer: str | None) -> str:
+    """Reminder text, built only from clinician-approved step text (safety rule a)."""
+    text = f"{title}\n{instruction}"
+    return f"{text}\n\n{footer}" if footer else text
 
 
 def claim_due_events(session: Session, *, now: dt.datetime, limit: int) -> list[uuid.UUID]:
@@ -147,8 +159,16 @@ class ReminderSender:
                 f"No {channel.value.lower()} contact for this patient",
             )
 
-        original = compose_reminder(step)
-        translation = self._translator.translate(original, patient.preferred_language)
+        needs_reply = step.requires_confirmation
+        original = compose_reminder(
+            step.title, step.instruction_text, footer=CONFIRM_FOOTER if needs_reply else None
+        )
+        translated = translate_step(session, self._translator, step, patient.preferred_language)
+        language = base_language(patient.preferred_language) if translated else SOURCE_LANGUAGE
+        body = original
+        if translated is not None:
+            footer = CONFIRM_FOOTERS.get(language, CONFIRM_FOOTER) if needs_reply else None
+            body = compose_reminder(translated.title, translated.instruction, footer=footer)
         message = Message(
             organization_id=event.organization_id,
             patient_id=patient.id,
@@ -157,9 +177,9 @@ class ReminderSender:
             channel=channel,
             direction=MessageDirection.OUTBOUND,
             status=MessageStatus.QUEUED,
-            language=patient.preferred_language if translation.translated else SOURCE_LANGUAGE,
-            body=f"Prefix AI: {translation.text}",
-            original_body=original if translation.translated else None,
+            language=language,
+            body=f"Prefix AI: {body}",
+            original_body=original if translated is not None else None,
         )
         session.add(message)
         try:

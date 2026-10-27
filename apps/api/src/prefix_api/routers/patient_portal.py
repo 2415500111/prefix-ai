@@ -5,7 +5,12 @@ import uuid
 from fastapi import APIRouter, Depends, Response, status
 
 from prefix_api.api.deps import CurrentPatient, DbSession, Now, SettingsDep, patient_data_route
-from prefix_api.schemas.patients import MagicLinkRedeem, PatientSelfOut, PatientSessionOut
+from prefix_api.schemas.patients import (
+    LanguageCode,
+    MagicLinkRedeem,
+    PatientSelfOut,
+    PatientSessionOut,
+)
 from prefix_api.schemas.portal import PortalAppointment, ProblemReport, RescheduleRequest
 from prefix_api.services.patient_access import PatientAccessService
 from prefix_api.services.portal import PortalService
@@ -31,9 +36,9 @@ def me(principal: CurrentPatient, session: DbSession, settings: SettingsDep) -> 
 
 @router.get("/appointments", dependencies=patient_data)
 def my_appointments(
-    principal: CurrentPatient, session: DbSession, now: Now
+    principal: CurrentPatient, session: DbSession, now: Now, lang: LanguageCode = "en"
 ) -> list[PortalAppointment]:
-    return PortalService(session).list_appointments(principal, now=now)
+    return PortalService(session).list_appointments(principal, now=now, language=lang)
 
 
 @router.post(

@@ -8,6 +8,7 @@ from prefix_api.core.logging import configure_logging
 
 DEMO_PING_INTERVAL_SECONDS = 300.0
 REMINDER_DISPATCH_INTERVAL_SECONDS = 60.0
+TRANSLATION_WARM_INTERVAL_SECONDS = 600.0
 
 
 def create_celery_app(settings: Settings) -> Celery:
@@ -36,6 +37,11 @@ def create_celery_app(settings: Settings) -> Celery:
                 "schedule": REMINDER_DISPATCH_INTERVAL_SECONDS,
                 # A run that misses its slot is pointless: the next one picks everything up.
                 "options": {"expires": REMINDER_DISPATCH_INTERVAL_SECONDS},
+            },
+            "warm-translations": {
+                "task": "prefix_worker.translations.warm",
+                "schedule": TRANSLATION_WARM_INTERVAL_SECONDS,
+                "options": {"expires": TRANSLATION_WARM_INTERVAL_SECONDS},
             },
         },
     )

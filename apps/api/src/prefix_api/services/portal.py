@@ -40,6 +40,8 @@ from prefix_api.domain.principal import PatientPrincipal
 from prefix_api.schemas.portal import PortalAppointment, PortalFacility, PortalStep
 from prefix_api.services.audit import record_audit
 from prefix_api.services.check_ins import create_task, record_answer
+from prefix_api.services.step_translations import base_language, cached_translations
+from prefix_api.services.translation import SOURCE_LANGUAGE
 
 PURPOSE_VIEW = "patient_self_access"
 PURPOSE_ACTION = "patient_portal_check_in"
@@ -56,8 +58,10 @@ class PortalService:
         self._session = session
 
     def list_appointments(
-        self, principal: PatientPrincipal, *, now: dt.datetime
+        self, principal: PatientPrincipal, *, now: dt.datetime, language: str = SOURCE_LANGUAGE
     ) -> list[PortalAppointment]:
+        """Steps come back in ``language`` when a cached translation exists, otherwise as
+        the approved English text."""
         rows = self._session.execute(
             select(Appointment, ProcedureType, Facility)
             .join(ProcedureType, ProcedureType.id == Appointment.procedure_type_id)
@@ -82,7 +86,7 @@ class PortalService:
                 patient_id=principal.patient_id,
                 purpose=PURPOSE_VIEW,
             )
-            result.append(self._present(appointment, procedure, facility, now))
+            result.append(self._present(appointment, procedure, facility, language, now))
         return result
 
     def confirm_step(
@@ -228,6 +232,7 @@ class PortalService:
         appointment: Appointment,
         procedure: ProcedureType,
         facility: Facility,
+        language: str,
         now: dt.datetime,
     ) -> PortalAppointment:
         rows = self._session.execute(
@@ -240,14 +245,17 @@ class PortalService:
             )
             .order_by(PatientTimelineEvent.due_at, PrepStep.sort_order)
         ).all()
+        translations = cached_translations(self._session, (row[1].id for row in rows), language)
         steps = []
         for event, step, response in rows:
             view = _view(event, step, response, now)
+            translated = translations.get(step.id)
             steps.append(
                 PortalStep(
                     event_id=event.id,
-                    title=step.title,
-                    instruction=step.instruction_text,
+                    title=translated.title if translated else step.title,
+                    instruction=translated.instruction if translated else step.instruction_text,
+                    language=base_language(language) if translated else SOURCE_LANGUAGE,
                     category=step.category,
                     is_critical=step.is_critical,
                     requires_confirmation=step.requires_confirmation,

@@ -5,7 +5,7 @@ from prefix_api.db.models.engagement import CheckIn, Message, PatientTimelineEve
 from prefix_api.db.models.operations import Escalation, RiskScore, Task, WaitlistEntry
 from prefix_api.db.models.organization import Facility, Organization
 from prefix_api.db.models.patient import Patient, PatientMagicLink
-from prefix_api.db.models.protocol import PrepProtocol, PrepStep
+from prefix_api.db.models.protocol import PrepProtocol, PrepStep, PrepStepTranslation
 from prefix_api.db.models.scheduling import Appointment, ProcedureType
 from prefix_api.db.models.user import RefreshToken, User
 
@@ -22,6 +22,7 @@ __all__ = [
     "PatientTimelineEvent",
     "PrepProtocol",
     "PrepStep",
+    "PrepStepTranslation",
     "ProcedureType",
     "RefreshToken",
     "RiskScore",

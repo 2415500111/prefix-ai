@@ -88,3 +88,21 @@ class PrepStep(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     embedding_model: Mapped[str | None] = mapped_column(String(64))
 
     protocol: Mapped[PrepProtocol] = relationship(back_populates="steps")
+
+
+class PrepStepTranslation(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
+    """Machine translation of one approved step into one language.
+
+    Approved steps never change, so a translation stays valid for the life of the step. It
+    holds protocol content only, never patient data. Filled by reminder dispatch and a
+    background job, so patients never wait for the LLM.
+    """
+
+    __tablename__ = "prep_step_translation"
+    __table_args__ = (UniqueConstraint("step_id", "language"),)
+
+    step_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("prep_step.id", ondelete="CASCADE"))
+    language: Mapped[str] = mapped_column(String(16))
+    title: Mapped[str] = mapped_column(Text)
+    instruction_text: Mapped[str] = mapped_column(Text)
+    translated_by: Mapped[str] = mapped_column(String(64))

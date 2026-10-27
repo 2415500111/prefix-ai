@@ -24,6 +24,9 @@ class PortalStep(BaseModel):
     event_id: uuid.UUID
     title: str
     instruction: str
+    # Language of title/instruction: the requested one, or "en" (the approved original)
+    # when no translation is available yet.
+    language: str
     category: StepCategory
     is_critical: bool
     requires_confirmation: bool
