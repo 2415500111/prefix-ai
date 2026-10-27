@@ -7,6 +7,7 @@ from prefix_api.core.config import Settings, get_settings
 from prefix_api.core.logging import configure_logging
 
 DEMO_PING_INTERVAL_SECONDS = 300.0
+REMINDER_DISPATCH_INTERVAL_SECONDS = 60.0
 
 
 def create_celery_app(settings: Settings) -> Celery:
@@ -29,6 +30,12 @@ def create_celery_app(settings: Settings) -> Celery:
             "demo-ping": {
                 "task": "prefix_worker.demo.ping",
                 "schedule": DEMO_PING_INTERVAL_SECONDS,
+            },
+            "dispatch-reminders": {
+                "task": "prefix_worker.reminders.dispatch",
+                "schedule": REMINDER_DISPATCH_INTERVAL_SECONDS,
+                # A run that misses its slot is pointless: the next one picks everything up.
+                "options": {"expires": REMINDER_DISPATCH_INTERVAL_SECONDS},
             },
         },
     )
