@@ -5,8 +5,8 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 ## Resume point
 
 **Status:** Phases 0–3 merged. Phase 4 in progress on `phase-4-timeline-messaging` (pushed, not merged).
-**Done so far:** item 3 (timeline math + quiet hours, 22 tests).
-**Next:** items 1–2 (appointments API + timeline service).
+**Done so far:** all plan items 1–8 implemented and tested (277 pytest).
+**Next:** docs, full checks, CI green, then merge Phase 4.
 
 **Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 

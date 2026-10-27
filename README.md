@@ -121,6 +121,19 @@ The full API is browsable at http://localhost:8000/docs. The security model (rol
 
 Python tests run against a real PostgreSQL with pgvector. Start one with `docker compose up -d postgres`; the `prefix_test` database is created and migrated automatically. To use another server, set `TEST_DATABASE_URL`. CI runs the same tests against Postgres 18.
 
+## Reminders and messaging
+
+Booking an appointment (`POST /appointments`) builds the patient's prep timeline from the approved protocol. The `celery-beat` service runs the reminder dispatcher every minute. With `MESSAGING_PROVIDER=console` (the default), reminders are only logged, with the recipient masked. Set `MESSAGING_PROVIDER=live` plus the Twilio and SMTP values in `.env` to really send. Point your Twilio number's incoming-message webhook to `<PUBLIC_API_BASE_URL>/webhooks/twilio`. Patients must have messaging consent recorded before anything is sent.
+
+Without Docker, run the worker and scheduler in two more terminals:
+
+```powershell
+uv run celery --app prefix_worker.celery_app worker --loglevel INFO --pool solo
+uv run celery --app prefix_worker.celery_app beat --loglevel INFO
+```
+
+These need Redis at `REDIS_URL`.
+
 ## Configuration
 
 All settings come from environment variables. Each one is documented in [.env.example](.env.example). The API validates them on startup with pydantic-settings and refuses to start if a required value is missing or invalid. For example, `LLM_MODEL` must be set, `JWT_SECRET` must be at least 32 characters, and the placeholder secret is rejected in production.

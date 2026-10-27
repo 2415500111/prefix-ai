@@ -148,3 +148,20 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
 - **Database guards (migration 0003).** Triggers reject any change to an approved or retired version other than APPROVED → RETIRED, reject deleting such versions, reject edits to their steps, and reject any `patient_timeline_event` that points at a step of a non-approved protocol. This holds even if application code is bypassed.
 - **Conditions.** Each step can carry a JSON rule (`all`, `any`, `not`, `flag`, `missing`, `compare`) over whitelisted patient fields. It is validated on save and evaluated without `eval` (`domain/conditions.py`). `applicable_steps()` raises if given a non-approved protocol.
 - **Web.** `/dashboard/protocols` (list), `/new`, `/[id]` (steps in time order, versions, approve) and `/[id]/edit` (step builder). Staff sessions use the backend-for-frontend pattern: tokens live in httpOnly cookies set by Server Actions, and `src/proxy.ts` refreshes them before expiry.
+
+## 6. Smart Prep Timeline and messaging
+
+- **Building the timeline** (`services/timeline.py`, `domain/timeline.py`). Booking picks the procedure's approved protocol; if several exist, the coordinator must choose one. Applicable steps become `patient_timeline_event` rows with a due time and a send time in the facility timezone.
+  - Whole-day offsets keep wall-clock time across DST; hour and minute offsets are exact durations.
+  - **Quiet hours** run 22:00–07:00. A non-critical reminder that falls inside them moves earlier, to 21:30 the evening before. Critical steps keep their exact time.
+  - Steps already past at booking are sent as catch-ups.
+  - Rescheduling cancels the old events and builds new ones from the newest approved version. Cancelling the appointment cancels every event and expires open check-ins.
+- **Dispatch** (`services/dispatch.py`, Celery beat every 60 s). Due events are claimed with `FOR UPDATE SKIP LOCKED` (PENDING → SENDING) and sent one per transaction.
+  - The Message row is written before the provider call, and a partial unique index allows only one outbound message per event. An interrupted send is marked FAILED rather than retried, so a patient is never messaged twice.
+  - Sending requires messaging consent and a contact for the preferred channel. Reminder text comes only from the approved step.
+- **Providers** (`services/messaging/`): Console (development), Twilio SMS and WhatsApp, SMTP email, selected by `MESSAGING_PROVIDER`.
+- **Translation** (`services/translation.py`): Claude translates only approved step text (no PHI) into the patient's language. The approved original is stored next to the translation, and any error, refusal or implausible output means the original is sent instead.
+- **Replies** (`POST /webhooks/twilio`, Twilio-signature verified): YES, NO and HELP in English and Hindi update the latest open check-in.
+  - NO on a critical step opens a HIGH escalation and marks the appointment AT_RISK.
+  - HELP escalates to a nurse.
+  - Any other text is stored and queued for a person, never interpreted automatically.
