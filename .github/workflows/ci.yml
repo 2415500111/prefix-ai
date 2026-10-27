@@ -17,6 +17,20 @@ jobs:
     name: Python (ruff, mypy, pytest)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: prefix
+          POSTGRES_PASSWORD: prefix
+          POSTGRES_DB: prefix_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prefix -d prefix_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://prefix:prefix@localhost:5432/prefix_test
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
@@ -73,10 +87,13 @@ jobs:
         run: docker compose up --detach --wait --wait-timeout 300
       - name: Apply migrations
         run: docker compose run --rm api alembic upgrade head
-      - name: Health checks
+      - name: Seed demo data
+        run: docker compose run --rm -e SEED_ADMIN_PASSWORD=ci-smoke-password api python -m prefix_api.seed
+      - name: Health checks and login
         run: |
           curl --fail --silent --show-error http://localhost:8000/health
           curl --fail --silent --show-error http://localhost:3000/api/health
+          curl --fail --silent --show-error -X POST http://localhost:8000/auth/login             -H 'Content-Type: application/json'             -d '{"email":"admin@demo-hospital.example.com","password":"ci-smoke-password"}'             | grep -q access_token
       - name: Service status and logs on failure
         if: failure()
         run: |
