@@ -11,6 +11,7 @@ from prefix_api.domain.enums import (
     MessageChannel,
     MessageDirection,
     MessageStatus,
+    RiskLevel,
     TaskStatus,
     TaskType,
     TimelineEventStatus,
@@ -31,6 +32,10 @@ class UpcomingOut(BaseModel):
     problem_steps: int
     open_escalations: int
     open_tasks: int
+    risk_score: int
+    risk_level: RiskLevel
+    # The reasons behind the score, strongest first, in plain words.
+    risk_reasons: list[str]
 
 
 class DrawerStepOut(BaseModel):

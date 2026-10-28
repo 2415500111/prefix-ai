@@ -11,6 +11,7 @@ from prefix_api.services.demo import populate_demo
 from prefix_api.services.dispatch import dispatch_due_reminders
 from prefix_api.services.messaging.base import MessagingProvider
 from prefix_api.services.messaging.providers import build_messaging_provider
+from prefix_api.services.risk import refresh as refresh_risk
 from prefix_api.services.step_translations import warm_step_translations
 from prefix_api.services.translation import Translator, build_translator
 
@@ -67,3 +68,10 @@ def reset_demo_nightly() -> dict[str, int]:
         admin_password=secrets.token_urlsafe(12),
     )
     return {"patients": result.patients, "appointments": result.appointments}
+
+
+@shared_task(name="prefix_worker.risk.refresh", ignore_result=True)
+def refresh_risk_scores() -> dict[str, int]:
+    """Score upcoming procedures and open a task for each new HIGH-risk one. Every 15 minutes."""
+    result = refresh_risk(_session_factory(), now=dt.datetime.now(dt.UTC))
+    return {"scored": result.scored, "high": result.high, "tasks_opened": result.tasks_opened}

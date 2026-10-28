@@ -45,6 +45,9 @@ def _upcoming(row: UpcomingRow) -> UpcomingOut:
         problem_steps=row.problem_steps,
         open_escalations=row.open_escalations,
         open_tasks=row.open_tasks,
+        risk_score=row.risk.score,
+        risk_level=row.risk.level,
+        risk_reasons=[factor.label for factor in row.risk.factors[:4]],
     )
 
 
