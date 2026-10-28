@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  AnalyticsSummary,
   Drawer,
   EscalationItem,
   Me,
@@ -94,4 +95,24 @@ export function getPatientDrawer(appointmentId: string): Promise<Drawer> {
 
 export function listTaskQueue(): Promise<QueueItem[]> {
   return guarded(api<QueueItem[]>("/dashboard/queue"));
+}
+
+export function getAnalyticsSummary(
+  start: string,
+  end: string,
+  baselineRate?: number,
+): Promise<AnalyticsSummary> {
+  const query = new URLSearchParams({ start, end });
+  if (baselineRate !== undefined)
+    query.set("baseline_rate", String(baselineRate));
+  return guarded(
+    api<AnalyticsSummary>(`/analytics/summary?${query.toString()}`),
+  );
+}
+
+const EXPORTERS: ReadonlySet<Role> = new Set(["ADMIN", "COORDINATOR"]);
+
+/** Mirrors the API's ANALYTICS_EXPORT permission; the API remains the authority. */
+export function canExportAnalytics(role: Role): boolean {
+  return EXPORTERS.has(role);
 }

@@ -10,6 +10,7 @@ const NAV = [
   { href: "/dashboard/protocols", label: "Protocols" },
   { href: "/dashboard/inbox", label: "Inbox" },
   { href: "/dashboard/tasks", label: "Tasks" },
+  { href: "/dashboard/analytics", label: "Analytics" },
 ] as const;
 
 /** Guests must always know that the data is made up. */
