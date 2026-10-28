@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–6b merged (latest tag `v0.6.1`). Phase 8 (coordinator dashboard) complete on `phase-8-coordinator-dashboard`, merging to `main` as `v0.8.0`.
+**Status:** Phases 0–6b and 8 merged (latest tag `v0.8.0`). Phase 7 (risk score, rules v1) complete on `phase-7-risk-score`, merging to `main` as `v0.7.0`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 7 (risk score, v1 rules only) on `phase-7-risk-score`, once Phase 8 is merged.
+**Next:** Phase 10 (analytics and ROI, lite) on `phase-10-analytics`, once Phase 7 is merged.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -137,7 +137,14 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - Times are shown in Asia/Kolkata, and the reschedule form takes India time. Facilities in other timezones need their own offset (future work).
   - Staff screens are tested on the desktop project only. The table scrolls sideways on phones, but that layout is not tested yet.
 
-- [ ] Phase 7 — Cancellation Risk Score (rules v1 only) · branch `phase-7-risk-score`
+- [x] **Phase 7 — Cancellation Risk Score (rules v1)** · 2026-10-28 · `v0.7.0` · branch `phase-7-risk-score`
+  Transparent rules with written weights, each with a plain-words reason: steps not yet confirmed, escort or logistics outstanding, problem replies, open and urgent escalations, anticoagulant, insulin, GLP-1, contrast allergy and metal implant (for the matching scan), low eGFR for contrast, and the last 24 hours with steps outstanding. Levels: HIGH from 50, MEDIUM from 25. The worker refreshes scores every 15 minutes, stores each one with its reasons and model version, and opens one "High cancellation risk" coordinator task per HIGH procedure (never a second while one is open). The dashboard sorts escalations first, then by risk, and shows the reasons. `docs/model_report.md` lists the weights and their limits.
+  Verified: 445 pytest (new risk rules, refresh and dashboard tests), 63 Vitest, 7 Playwright (desktop project for staff screens), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Known issues and scope notes:**
+  - The learned model (calibrated logistic regression) is future work. The weights are judgement calls, not fitted to data, and are not calibrated (see `docs/model_report.md`).
+  - The dashboard works out each row's score on request, which costs about eight queries per procedure. Fine for the demo; cache it when the list grows.
+  - Scores are stored every 15 minutes per procedure with no retention policy yet (Phase 12).
+  - Scores need the worker and beat running. Locally they are not started by default.
 - [ ] Phase 10 — Analytics & ROI · branch `phase-10-analytics`
 - [ ] Phase 9 — Waitlist Backfill (lite) · branch `phase-9-waitlist`
 - [ ] Phase 11 — Integrations (lite) · branch `phase-11-integrations`
