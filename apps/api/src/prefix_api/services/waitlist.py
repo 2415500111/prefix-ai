@@ -80,8 +80,8 @@ def _hours(delta: dt.timedelta) -> int:
     return int(delta.total_seconds() // 3600)
 
 
-def _prep_lead(session: Session, protocol_id: uuid.UUID | None) -> dt.timedelta | None:
-    """How long before the procedure the prep starts: the largest offset of the slot's protocol.
+def prep_lead(session: Session, protocol_id: uuid.UUID | None) -> dt.timedelta | None:
+    """How long before the procedure the prep starts: the largest offset of the protocol.
 
     Step conditions are ignored on purpose, so the answer is never too optimistic.
     """
@@ -316,7 +316,7 @@ class WaitlistService:
         self, principal: StaffPrincipal, slot: Appointment, *, now: dt.datetime
     ) -> list[Candidate]:
         """Waitlisted patients who fit the slot, best first, each with the reasons."""
-        lead = _prep_lead(self._session, slot.protocol_id)
+        lead = prep_lead(self._session, slot.protocol_id)
         notice = slot.scheduled_at - now
         if lead is None or notice < lead:
             return []  # the prep could not start in time for anyone

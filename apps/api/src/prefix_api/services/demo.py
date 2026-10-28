@@ -15,6 +15,7 @@ import random
 import secrets
 import uuid
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -38,6 +39,7 @@ from prefix_api.db.models import (
     User,
 )
 from prefix_api.domain.enums import (
+    CancellationReason,
     CheckInResponse,
     CheckInStatus,
     EscalationSeverity,
@@ -49,8 +51,10 @@ from prefix_api.domain.enums import (
 from prefix_api.domain.errors import AuthenticationError, NotFoundError, PermissionDeniedError
 from prefix_api.domain.permissions import Permission
 from prefix_api.domain.principal import StaffPrincipal, SystemPrincipal
-from prefix_api.schemas.appointments import AppointmentCreate
+from prefix_api.repositories import protocols as protocols_repo
+from prefix_api.schemas.appointments import AppointmentCancel, AppointmentCreate
 from prefix_api.schemas.patients import PatientCreate
+from prefix_api.schemas.waitlist import WaitlistEntryCreate
 from prefix_api.seed import PROCEDURE_TYPES, seed_sample_protocols
 from prefix_api.services.appointments import AppointmentService
 from prefix_api.services.auth import AuthService, TokenPair
@@ -62,6 +66,7 @@ from prefix_api.services.patient_access import PatientAccessService
 from prefix_api.services.patients import PatientService
 from prefix_api.services.protocols import ProtocolService
 from prefix_api.services.translation import PassthroughTranslator
+from prefix_api.services.waitlist import WaitlistService, prep_lead
 
 logger = get_logger(__name__)
 
@@ -69,6 +74,7 @@ DEMO_SLUG = "guest-demo-hospital"
 DEMO_NAME = "Demo Hospital (guest)"
 DEMO_EMAIL_DOMAIN = "demo.example.com"
 PATIENT_COUNT = 25
+WAITING_PATIENTS = 3
 _SEED = 20261028
 _FACILITIES = [
     ("Demo Main Campus", "2 Demo Road, Bengaluru"),
@@ -246,6 +252,76 @@ def ensure_demo_hospital(session: Session, *, admin_password: str) -> tuple[Orga
     return org, coordinator
 
 
+def _shortest_prep(
+    session: Session, org_id: uuid.UUID, procedures: list[ProcedureType]
+) -> tuple[dt.timedelta, ProcedureType] | None:
+    """The procedure whose prep needs the least notice, so its released slot can be backfilled."""
+    best: tuple[dt.timedelta, ProcedureType] | None = None
+    for procedure in procedures:
+        approved = protocols_repo.list_approved_for_procedure(session, org_id, procedure.id)
+        lead = prep_lead(session, approved[0].id) if approved else None
+        if lead is not None and (best is None or lead < best[0]):
+            best = (lead, procedure)
+    return best
+
+
+def _add_backfill_scenario(
+    session: Session,
+    coordinator: StaffPrincipal,
+    facility: Facility,
+    procedure: ProcedureType,
+    lead: dt.timedelta,
+    waiting: list[uuid.UUID],
+    *,
+    now: dt.datetime,
+) -> None:
+    """A released slot and patients waiting for the same procedure, to try a backfill."""
+    released = PatientService(session).create(
+        coordinator,
+        PatientCreate(
+            first_name="Released",
+            last_name="Patient",
+            date_of_birth=dt.date(1980, 1, 1),
+            phone="+919990000099",
+            email=f"released@{DEMO_EMAIL_DOMAIN}",
+            preferred_language="en",
+            preferred_channel=MessageChannel.SMS,
+            consent_to_message=True,
+        ),
+        now=now,
+    )
+    session.flush()
+    scheduled_at = now + lead + dt.timedelta(days=1)
+    booked = AppointmentService(session).create(
+        coordinator,
+        AppointmentCreate(
+            patient_id=released.id,
+            facility_id=facility.id,
+            procedure_type_id=procedure.id,
+            scheduled_at=scheduled_at,
+        ),
+        now=now,
+    )
+    AppointmentService(session).cancel(
+        coordinator,
+        booked.id,
+        AppointmentCancel(reason=CancellationReason.PATIENT_REQUESTED),
+        now=now,
+    )
+    local_day = scheduled_at.astimezone(ZoneInfo(facility.timezone)).date()
+    for index, patient_id in enumerate(waiting):
+        WaitlistService(session).add(
+            coordinator,
+            WaitlistEntryCreate(
+                patient_id=patient_id,
+                procedure_type_id=procedure.id,
+                earliest_date=local_day - dt.timedelta(days=1),
+                latest_date=local_day + dt.timedelta(days=2),
+                priority=1 if index == 0 else 0,
+            ),
+        )
+
+
 def _wipe_patient_data(session: Session, org: Organization) -> None:
     """Remove patients, bookings and everything that hangs off them. Protocols stay."""
     session.execute(delete(Escalation).where(Escalation.organization_id == org.id))
@@ -278,6 +354,8 @@ def populate_demo(
         )
         rng = random.Random(_SEED)  # noqa: S311 - reproducible demo data, not a secret
         appointment_count = 0
+        backfill = _shortest_prep(session, org_id, procedures)
+        waiting: list[uuid.UUID] = []
         for index in range(PATIENT_COUNT):
             first = rng.choice(_FIRST_NAMES)
             last = rng.choice(_LAST_NAMES)
@@ -315,6 +393,17 @@ def populate_demo(
                 now=now,
             )
             appointment_count += 1
+            if (
+                backfill is not None
+                and procedure.id != backfill[1].id
+                and len(waiting) < WAITING_PATIENTS
+            ):
+                waiting.append(patient.id)
+        if backfill is not None:
+            lead, slot_procedure = backfill
+            _add_backfill_scenario(
+                session, coordinator, facilities[0], slot_procedure, lead, waiting, now=now
+            )
         session.commit()
 
     reminders = dispatch_due_reminders(

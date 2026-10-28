@@ -9,7 +9,7 @@ from api_testkit import Builder, StepSpec, staff_headers
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from prefix_api.core.config import Settings
 from prefix_api.db.models import (
@@ -20,6 +20,7 @@ from prefix_api.db.models import (
     Patient,
     PatientTimelineEvent,
     ProcedureType,
+    User,
     WaitlistEntry,
 )
 from prefix_api.domain.enums import (
@@ -35,6 +36,7 @@ from prefix_api.domain.principal import StaffPrincipal
 from prefix_api.schemas.appointments import AppointmentCancel, AppointmentCreate
 from prefix_api.schemas.waitlist import WaitlistEntryCreate
 from prefix_api.services.appointments import AppointmentService
+from prefix_api.services.demo import DEMO_SLUG, populate_demo
 from prefix_api.services.waitlist import PURPOSE, WaitlistService
 
 KOLKATA = ZoneInfo("Asia/Kolkata")
@@ -386,3 +388,28 @@ def test_the_waitlist_api_runs_the_whole_backfill(
     assert (
         client.post(f"/waitlist/slots/{slot.id}/find-backfill", headers=viewer).status_code == 403
     )
+
+
+def test_the_demo_hospital_has_a_slot_that_can_be_backfilled(
+    session_factory: sessionmaker[Session], db_session: Session
+) -> None:
+    now = dt.datetime.now(dt.UTC)
+    admin_password = "demo-admin-password"  # pragma: allowlist secret
+    populate_demo(session_factory, now=now, admin_password=admin_password)
+    org = db_session.scalar(select(Organization).where(Organization.slug == DEMO_SLUG))
+    assert org is not None
+    coordinator_user = db_session.scalar(
+        select(User).where(User.organization_id == org.id, User.role == Role.COORDINATOR)
+    )
+    assert coordinator_user is not None
+    coordinator = StaffPrincipal(
+        user_id=coordinator_user.id, organization_id=org.id, role=Role.COORDINATOR
+    )
+    service = WaitlistService(db_session)
+
+    slots = service.released_slots(coordinator, now=now)
+    assert len(slots) == 1
+    offer = service.find_backfill(coordinator, slots[0].appointment.id, now=now)
+
+    assert offer.patient.first_name != "Released"
+    assert len(service.entries(coordinator, status=WaitlistStatus.OFFERED)) == 1
