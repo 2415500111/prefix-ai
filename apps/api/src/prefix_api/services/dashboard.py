@@ -35,7 +35,9 @@ from prefix_api.domain.enums import (
 from prefix_api.domain.errors import ConflictError, NotFoundError
 from prefix_api.domain.permissions import Permission
 from prefix_api.domain.principal import StaffPrincipal
+from prefix_api.domain.risk import RiskResult
 from prefix_api.services.audit import record_audit
+from prefix_api.services.risk import compute as compute_risk
 
 PURPOSE_LIST = "dashboard_list"
 PURPOSE_DRAWER = "dashboard_patient_drawer"
@@ -57,6 +59,7 @@ class UpcomingRow:
     problem_steps: int
     open_escalations: int
     open_tasks: int
+    risk: RiskResult
 
     @property
     def readiness(self) -> int:
@@ -154,11 +157,13 @@ class DashboardService:
                     problem_steps=problems[appointment.id],
                     open_escalations=escalations[appointment.id],
                     open_tasks=tasks[appointment.id],
+                    risk=compute_risk(self._session, appointment, now=now),
                 )
             )
         result.sort(
             key=lambda row: (
                 row.open_escalations == 0,
+                -row.risk.score,
                 row.readiness,
                 row.appointment.scheduled_at,
             )
@@ -258,6 +263,7 @@ class DashboardService:
             problem_steps=problems[appointment.id],
             open_escalations=escalations[appointment.id],
             open_tasks=tasks[appointment.id],
+            risk=compute_risk(self._session, appointment, now=now),
         )
 
     def queue(

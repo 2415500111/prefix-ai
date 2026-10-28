@@ -19,6 +19,9 @@ function row(overrides: Partial<UpcomingRow>): UpcomingRow {
     problem_steps: 0,
     open_escalations: 0,
     open_tasks: 0,
+    risk_score: 0,
+    risk_level: "LOW",
+    risk_reasons: [],
     ...overrides,
   };
 }
