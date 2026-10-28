@@ -150,10 +150,8 @@ services:
     # Dev only: bind-mounted source belongs to the host user, and on Linux hosts the
     # image's non-root user cannot write Next.js's generated files into it.
     user: root
-    # Only public settings: the web container never sees backend secrets.
+    # The browser never calls the API; only the Next.js server does, over the Compose network.
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      # Server-side calls from Next.js to the API go over the Compose network.
       API_INTERNAL_URL: http://api:8000
     ports:
       - "3000:3000"
