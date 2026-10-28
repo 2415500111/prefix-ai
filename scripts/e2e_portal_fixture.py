@@ -55,7 +55,16 @@ STEPS = [
         is_critical=True,
     ),
 ]
-PATIENTS = {"en": ("Asha", "en"), "hi": ("Ravi", "hi"), "reuse": ("Meera", "en")}
+STAFF_PASSWORD = (
+    "E2E-Staff-Password-2026!"  # pragma: allowlist secret - test data only, never a real account
+)
+PATIENTS = {
+    "en": ("Asha", "en"),
+    "hi": ("Ravi", "hi"),
+    "reuse": ("Meera", "en"),
+    # Its own link: magic links are single-use, and the assistant test must not share one.
+    "assist": ("Priya", "en"),
+}
 
 
 def main() -> None:
@@ -98,12 +107,14 @@ def main() -> None:
                     email=f"{role.value.lower()}-{suffix}@e2e.example.com",
                     full_name=f"E2E {role.value.title()}",
                     role=role,
-                    password_hash=hash_password(secrets.token_urlsafe(16)),
+                    # Known only to this throwaway test organisation, so E2E tests can sign in.
+                    password_hash=hash_password(STAFF_PASSWORD),
                 )
                 for role in (Role.CLINICIAN, Role.COORDINATOR)
             }
             session.add_all([facility, procedure, *users.values()])
             session.flush()
+            coordinator_email = users[Role.COORDINATOR].email
             clinician, coordinator = (
                 StaffPrincipal(user_id=u.id, organization_id=org.id, role=u.role)
                 for u in users.values()
@@ -150,6 +161,8 @@ def main() -> None:
     finally:
         engine.dispose()
     # Last line of output: the test runner parses it (logs may come before it).
+    links["staff_email"] = coordinator_email
+    links["staff_password"] = STAFF_PASSWORD
     print(json.dumps(links))
 
 

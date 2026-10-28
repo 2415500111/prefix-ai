@@ -10,10 +10,15 @@ import {
   toPortalLang,
 } from "@/lib/portal-i18n";
 import { getChosenLanguage } from "@/lib/server/patient-session";
-import { getMyAppointments, getPatientSelf } from "@/lib/server/portal";
+import {
+  getAssistantHistory,
+  getMyAppointments,
+  getPatientSelf,
+} from "@/lib/server/portal";
 
 import { chooseLanguage, signOut } from "../actions";
 import { AppointmentCard } from "./appointment-card";
+import { AssistantPanel } from "./assistant-panel";
 import { Checklist, PrepTimeline } from "./prep-steps";
 
 export const metadata: Metadata = { title: "My procedure" };
@@ -43,6 +48,11 @@ async function PortalHome() {
   ]);
   const lang = chosen ?? toPortalLang(self.preferred_language);
   const { appointments, fetchedAt: now } = await getMyAppointments(lang);
+  const histories = await Promise.all(
+    appointments.map((appointment) =>
+      getAssistantHistory(appointment.id, lang),
+    ),
+  );
   const t = PORTAL_TEXT[lang];
 
   return (
@@ -64,13 +74,18 @@ async function PortalHome() {
       {appointments.length === 0 ? (
         <p className="rounded-xl border bg-card p-5">{t.noAppointments}</p>
       ) : (
-        appointments.map((appointment) => (
+        appointments.map((appointment, index) => (
           <div key={appointment.id} className="flex flex-col gap-5">
             <AppointmentCard appointment={appointment} lang={lang} now={now} />
             <Checklist
               appointmentId={appointment.id}
               steps={appointment.steps}
               lang={lang}
+            />
+            <AssistantPanel
+              appointmentId={appointment.id}
+              lang={lang}
+              history={histories[index] ?? []}
             />
             <PrepTimeline
               appointmentId={appointment.id}

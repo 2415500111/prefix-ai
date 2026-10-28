@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { PatientSelf, PortalAppointment } from "@prefix/shared";
+import type {
+  AssistantReply,
+  PatientSelf,
+  PortalAppointment,
+} from "@prefix/shared";
 import { redirect } from "next/navigation";
 
 import { api, ApiError } from "./api";
@@ -46,4 +50,13 @@ export async function getMyAppointments(lang: string): Promise<MyAppointments> {
     `/patient/appointments?lang=${encodeURIComponent(lang)}`,
   );
   return { appointments, fetchedAt: Date.now() };
+}
+
+export function getAssistantHistory(
+  appointmentId: string,
+  lang: string,
+): Promise<AssistantReply[]> {
+  return patientApi<AssistantReply[]>(
+    `/patient/assistant/questions?appointment_id=${encodeURIComponent(appointmentId)}&lang=${encodeURIComponent(lang)}`,
+  );
 }
