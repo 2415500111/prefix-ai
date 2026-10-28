@@ -1,9 +1,6 @@
 "use server";
 
-import { refresh } from "next/cache";
-import { redirect } from "next/navigation";
-
-import { api, ApiError } from "@/lib/server/api";
+import { performFormAction } from "../form-action";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CANCEL_REASONS = [
@@ -19,28 +16,9 @@ const CANCEL_REASONS = [
   "FACILITY_OR_STAFF",
 ] as const;
 
-/**
- * Every action here is a form action, so it returns nothing: on success the page refreshes,
- * and on failure the user is sent back with a notice. A signed-out session goes to login.
- */
-async function perform(
-  back: string,
-  path: string,
-  options?: { method: "POST"; body?: unknown },
-): Promise<void> {
-  try {
-    await api(path, options);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) redirect("/login");
-    const separator = back.includes("?") ? "&" : "?";
-    redirect(`${back}${separator}notice=failed`);
-  }
-  refresh();
-}
-
 export async function resendFailed(appointmentId: string): Promise<void> {
   if (!UUID.test(appointmentId)) return;
-  await perform(
+  await performFormAction(
     `/dashboard?appointment=${appointmentId}`,
     `/dashboard/appointments/${appointmentId}/resend-failed`,
     { method: "POST" },
@@ -52,7 +30,7 @@ export async function confirmStep(
   eventId: string,
 ): Promise<void> {
   if (!UUID.test(appointmentId) || !UUID.test(eventId)) return;
-  await perform(
+  await performFormAction(
     `/dashboard?appointment=${appointmentId}`,
     `/appointments/${appointmentId}/steps/${eventId}/confirm`,
     { method: "POST" },
@@ -64,7 +42,9 @@ export async function completeTask(
   back: string,
 ): Promise<void> {
   if (!UUID.test(taskId) || !back.startsWith("/dashboard")) return;
-  await perform(back, `/tasks/${taskId}/complete`, { method: "POST" });
+  await performFormAction(back, `/tasks/${taskId}/complete`, {
+    method: "POST",
+  });
 }
 
 export async function releaseSlot(
@@ -77,7 +57,7 @@ export async function releaseSlot(
   const note = String(formData.get("note") ?? "")
     .trim()
     .slice(0, 1000);
-  await perform(
+  await performFormAction(
     `/dashboard?appointment=${appointmentId}`,
     `/appointments/${appointmentId}/cancel`,
     { method: "POST", body: { reason, note: note || null } },
@@ -95,7 +75,7 @@ export async function reschedule(
   if (!UUID.test(appointmentId)) return;
   const local = String(formData.get("scheduled_at") ?? "");
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local)) return;
-  await perform(
+  await performFormAction(
     `/dashboard?appointment=${appointmentId}`,
     `/appointments/${appointmentId}/reschedule`,
     { method: "POST", body: { scheduled_at: `${local}:00+05:30` } },

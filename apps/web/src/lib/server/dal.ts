@@ -5,12 +5,15 @@ import type {
   Drawer,
   EscalationItem,
   Me,
+  PatientSummary,
   ProcedureType,
   Protocol,
   ProtocolSummary,
   QueueItem,
+  ReleasedSlot,
   Role,
   UpcomingRow,
+  WaitlistEntry,
 } from "@prefix/shared";
 import { notFound, redirect } from "next/navigation";
 
@@ -115,4 +118,26 @@ const EXPORTERS: ReadonlySet<Role> = new Set(["ADMIN", "COORDINATOR"]);
 /** Mirrors the API's ANALYTICS_EXPORT permission; the API remains the authority. */
 export function canExportAnalytics(role: Role): boolean {
   return EXPORTERS.has(role);
+}
+
+/** Patients to choose from when adding someone to the waitlist. */
+export function listPatients(): Promise<PatientSummary[]> {
+  return guarded(api<PatientSummary[]>("/patients?limit=100"));
+}
+
+/** Patients still waiting for a procedure, highest priority first. */
+export function listWaitlist(): Promise<WaitlistEntry[]> {
+  return guarded(api<WaitlistEntry[]>("/waitlist?status=ACTIVE"));
+}
+
+/** Cancelled slots that are still ahead and not yet filled, with any open offer. */
+export function listReleasedSlots(): Promise<ReleasedSlot[]> {
+  return guarded(api<ReleasedSlot[]>("/waitlist/slots"));
+}
+
+const WAITLIST_MANAGERS: ReadonlySet<Role> = new Set(["ADMIN", "COORDINATOR"]);
+
+/** Mirrors the API's APPOINTMENT_WRITE permission; the API remains the authority. */
+export function canManageWaitlist(role: Role): boolean {
+  return WAITLIST_MANAGERS.has(role);
 }

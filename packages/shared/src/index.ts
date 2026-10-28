@@ -307,3 +307,43 @@ export interface AnalyticsSummary {
   or_minutes_saved_estimate: number | null;
   or_cost_saved_estimate: string | null;
 }
+
+/* Patients and the waitlist (see apps/api/src/prefix_api/schemas/waitlist.py). */
+
+export interface PatientSummary {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
+export type WaitlistStatus = "ACTIVE" | "OFFERED" | "BOOKED" | "REMOVED";
+export type OfferStatus = "OPEN" | "ACCEPTED" | "DECLINED";
+
+export interface WaitlistEntry {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  procedure_name: string;
+  earliest_date: string;
+  latest_date: string;
+  priority: number;
+  status: WaitlistStatus;
+}
+
+export interface Offer {
+  id: string;
+  status: OfferStatus;
+  waitlist_entry_id: string;
+  patient_id: string;
+  patient_name: string;
+  /** Why this patient fits the slot, as shown when the offer was made. */
+  reasons: string[];
+}
+
+export interface ReleasedSlot {
+  appointment_id: string;
+  procedure_name: string;
+  facility_name: string;
+  scheduled_at: string;
+  open_offer: Offer | null;
+}
