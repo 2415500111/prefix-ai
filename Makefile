@@ -8,7 +8,7 @@ API_RUN := $(COMPOSE) run --rm api
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup up down restart logs ps health migrate migration seed test e2e lint format clean
+.PHONY: help setup up down restart logs ps health migrate migration seed test e2e eval lint format clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -54,6 +54,9 @@ seed: .env ## Load development seed data
 test: ## Run all tests (Python + web)
 	uv run pytest
 	pnpm -r test
+
+eval: ## Evaluate the AI Prep Assistant on labelled cases (LLM cases need ANTHROPIC_API_KEY)
+	uv run python apps/api/evals/run_assistant_eval.py
 
 e2e: ## Playwright end-to-end tests (needs a migrated DATABASE_URL; starts API and web)
 	pnpm --filter @prefix/web build

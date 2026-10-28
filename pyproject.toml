@@ -34,6 +34,8 @@ extend-ignore = ["S105", "S106"]
 "apps/api/migrations/**" = ["N999"]
 # Dev-only helper scripts print to the console and build SQL from constants.
 "scripts/**" = ["T201", "S608"]
+# The evaluation runner prints its report.
+"apps/api/evals/**" = ["T201"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
