@@ -347,3 +347,25 @@ export interface ReleasedSlot {
   scheduled_at: string;
   open_offer: Offer | null;
 }
+
+/* CSV imports (see apps/api/src/prefix_api/schemas/imports.py). */
+
+export type ImportKind = "patients" | "appointments";
+
+export interface ImportRowError {
+  /** The line in the file, counting the header as line 1. */
+  line: number;
+  column: string | null;
+  /** Never includes the cell's value. */
+  message: string;
+}
+
+export interface ImportReport {
+  kind: ImportKind;
+  rows: number;
+  valid_rows: number;
+  imported: number;
+  committed: boolean;
+  ignored_columns: string[];
+  errors: ImportRowError[];
+}
