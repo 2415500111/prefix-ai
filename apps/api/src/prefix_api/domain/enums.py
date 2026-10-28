@@ -193,3 +193,10 @@ class AssistantOutcome(StrEnum):
     NOT_COVERED = "NOT_COVERED"
     CHECK_FAILED = "CHECK_FAILED"
     UNAVAILABLE = "UNAVAILABLE"
+
+
+class OfferStatus(StrEnum):
+    # The one offer that is waiting for the candidate's answer.
+    OPEN = "OPEN"
+    ACCEPTED = "ACCEPTED"
+    DECLINED = "DECLINED"

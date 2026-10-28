@@ -4,7 +4,17 @@ import datetime as dt
 import uuid
 from typing import Any
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Uuid
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Uuid,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +24,7 @@ from prefix_api.domain.enums import (
     EscalationSeverity,
     EscalationSource,
     EscalationStatus,
+    OfferStatus,
     RiskLevel,
     TaskStatus,
     TaskType,
@@ -113,3 +124,42 @@ class Task(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     )
     due_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BackfillOffer(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
+    """One offer of a released slot to a waitlisted patient.
+
+    At most one OPEN offer and at most one ACCEPTED offer may exist per slot. The database
+    enforces both, so two staff members cannot book the same slot.
+    """
+
+    __tablename__ = "backfill_offer"
+    __table_args__ = (
+        Index(
+            "uq_backfill_offer_open_per_slot",
+            "slot_appointment_id",
+            unique=True,
+            postgresql_where=text("status = 'OPEN'"),
+        ),
+        Index(
+            "uq_backfill_offer_accepted_per_slot",
+            "slot_appointment_id",
+            unique=True,
+            postgresql_where=text("status = 'ACCEPTED'"),
+        ),
+    )
+
+    slot_appointment_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("appointment.id", ondelete="CASCADE"), index=True
+    )
+    waitlist_entry_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("waitlist_entry.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[OfferStatus] = mapped_column(
+        str_enum(OfferStatus, "offer_status"), default=OfferStatus.OPEN, index=True
+    )
+    booked_appointment_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("appointment.id", ondelete="SET NULL")
+    )
+    # Why this patient fits the slot, kept so the coordinator still sees them after a reload.
+    reasons: Mapped[list[str]] = mapped_column(JSONB, default=list)
