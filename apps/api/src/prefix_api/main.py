@@ -24,6 +24,7 @@ from prefix_api.db.session import (
 )
 from prefix_api.routers import (
     admin,
+    analytics,
     appointments,
     auth,
     dashboard,
@@ -108,6 +109,7 @@ def create_app(
     app.include_router(patient_portal.router)
     app.include_router(protocols.router)
     app.include_router(appointments.router)
+    app.include_router(analytics.router)
     app.include_router(dashboard.router)
     app.include_router(demo.router)
     app.include_router(escalations.router)
