@@ -145,6 +145,15 @@ uv run python scripts/e2e_portal_fixture.py
 
 This creates a throwaway test hospital with three patients (English, Hindi, and one more) whose procedure is in two days, and prints one link for each. Open a link on your phone or in a narrow browser window. Each link works once. Staff can issue a real patient's link with `POST /patients/{id}/magic-links`.
 
+## Guest demo
+
+`make seed-demo` (or `uv run python -m prefix_api.seed_demo`) creates a synthetic hospital called **Demo Hospital (guest)**: 25 made-up patients across the four procedures, bookings over the next week, reminders already sent to the console, some answers and two escalations. Every name, phone number and e-mail address is generated.
+
+- **Try the demo:** open http://localhost:3000/login and press **Try as Guest**. A guest can read everything and tick things off (complete tasks, confirm steps, resolve escalations), and can open a patient's portal in English or Hindi from the dashboard.
+- **Guests cannot** approve protocols, manage users, reset the demo, see other organisations, or send real messages. Demo reminders are only logged to the console.
+- **Reset:** the demo starts fresh every night (worker, 03:00 India time). The demo admin account, printed by `make seed-demo` the first time, can also press **Reset demo**.
+- **Turn it off:** `ENABLE_GUEST_LOGIN=false`. The sign-in page then hides the button, and `POST /auth/guest` returns 404.
+
 ## Configuration
 
 All settings come from environment variables. Each one is documented in [.env.example](.env.example). The API validates them on startup with pydantic-settings and refuses to start if a required value is missing or invalid. For example, `LLM_MODEL` must be set, `JWT_SECRET` must be at least 32 characters, and the placeholder secret is rejected in production.
