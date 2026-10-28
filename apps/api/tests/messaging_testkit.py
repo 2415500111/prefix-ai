@@ -38,6 +38,7 @@ class RecordingProvider:
 @dataclass
 class FakeTranslator:
     fail: bool = False
+    name: str = "fake"
     calls: list[tuple[str, str]] = field(default_factory=list)
 
     def translate(self, text: str, language: str) -> Translation:

@@ -52,3 +52,8 @@ Thumbs.db
 
 # Local Postgres data from scripts/dev_postgres.py
 .devdb/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/

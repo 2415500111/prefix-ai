@@ -72,6 +72,58 @@ jobs:
       - name: Next.js build
         run: pnpm --filter @prefix/web build
 
+  e2e:
+    name: E2E (Playwright, patient portal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: prefix
+          POSTGRES_PASSWORD: prefix
+          POSTGRES_DB: prefix_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prefix -d prefix_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Overrides the value copied from .env.example.
+      DATABASE_URL: postgresql+psycopg://prefix:prefix@localhost:5432/prefix_e2e
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+          pnpm install --frozen-lockfile
+      - name: Create .env from example
+        run: cp .env.example .env
+      - name: Apply migrations
+        run: uv run alembic -c apps/api/alembic.ini upgrade head
+      - name: Install Chromium
+        run: pnpm --filter @prefix/web exec playwright install --with-deps chromium
+      - name: Next.js build
+        run: pnpm --filter @prefix/web build
+      - name: Playwright
+        run: pnpm --filter @prefix/web e2e
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: apps/web/test-results/
+          retention-days: 7
+
   docker:
     name: Docker (compose build + smoke test)
     runs-on: ubuntu-latest

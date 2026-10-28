@@ -90,3 +90,60 @@ export interface ApiErrorBody {
   detail: string | { msg: string; loc: (string | number)[] }[];
   code?: string;
 }
+
+/* Patient portal (see apps/api/src/prefix_api/schemas/portal.py). */
+
+export type StepState =
+  "DONE" | "DUE" | "UPCOMING" | "OVERDUE" | "ACTIVE" | "PROBLEM";
+
+export type AppointmentStatus =
+  "SCHEDULED" | "READY" | "AT_RISK" | "CANCELLED" | "COMPLETED";
+
+export interface PortalFacility {
+  name: string;
+  address: string | null;
+  maps_url: string | null;
+  phone: string | null;
+  timezone: string;
+}
+
+export interface PortalStep {
+  event_id: string;
+  title: string;
+  instruction: string;
+  /** Language of title and instruction; "en" when no translation exists yet. */
+  language: string;
+  category: StepCategory;
+  is_critical: boolean;
+  requires_confirmation: boolean;
+  due_at: string;
+  state: StepState;
+  can_confirm: boolean;
+  can_report_problem: boolean;
+}
+
+export interface PortalAppointment {
+  id: string;
+  procedure_name: string;
+  scheduled_at: string;
+  arrival_at: string | null;
+  duration_minutes: number;
+  status: AppointmentStatus;
+  facility: PortalFacility;
+  steps: PortalStep[];
+  reschedule_requested: boolean;
+}
+
+export interface PatientSelf {
+  id: string;
+  first_name: string;
+  preferred_language: string;
+  preferred_channel: string;
+  consent_to_message: boolean;
+}
+
+export interface PatientSession {
+  access_token: string;
+  token_type: string;
+  expires_at: string;
+}
