@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -27,6 +28,8 @@ async function Results({
   searchParams: PageProps<"/dashboard/analytics">["searchParams"];
 }) {
   const params = await searchParams;
+  // The default range depends on today, so the page must render per request, not at build time.
+  await connection();
   const defaults = lastThirtyDays();
   const end = text(params.end) ?? defaults.end;
   const start = text(params.start) ?? defaults.start;
