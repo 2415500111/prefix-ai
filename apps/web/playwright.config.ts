@@ -13,6 +13,10 @@ export default defineConfig({
   fullyParallel: true,
   // Cold starts and parallel workers make the 30-second default too tight for flows that log in first.
   timeout: 60_000,
+  // A page that navigates after a server action (the patient portal after a magic link) only
+  // changes its URL once the next page has rendered. Under a full parallel run that can take
+  // longer than the 5-second default, so waiting assertions get more time.
+  expect: { timeout: 15_000 },
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
