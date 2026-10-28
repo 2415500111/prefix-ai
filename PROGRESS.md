@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–6 merged (latest tag `v0.6.0`). Phase 6b (guest login and demo mode) complete on `phase-6b-guest-demo`, merging to `main` as `v0.6.1`.
+**Status:** Phases 0–6b merged (latest tag `v0.6.1`). Phase 8 (coordinator dashboard) complete on `phase-8-coordinator-dashboard`, merging to `main` as `v0.8.0`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 8 (coordinator dashboard, full) on `phase-8-coordinator-dashboard`, once Phase 6b is merged.
+**Next:** Phase 7 (risk score, v1 rules only) on `phase-7-risk-score`, once Phase 8 is merged.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -128,7 +128,15 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - The nightly reset runs in the worker, so it needs a running worker and beat. Locally they are not started by default.
   - A staff member's "View patient demo" link is issued as the demo guest, so the audit trail names the demo account, not the staff member.
 
-- [ ] Phase 8 — Coordinator Dashboard · branch `phase-8-coordinator-dashboard`
+- [x] **Phase 8 — Coordinator Dashboard** · 2026-10-28 · `v0.8.0` · branch `phase-8-coordinator-dashboard`
+  The dashboard lists the next 72 hours, with a "Needs attention" filter. Each row shows readiness (the share of steps that need confirming that are done), open escalations and open tasks. Escalated patients come first, then the least ready. A patient drawer shows the prep steps, escalations, recent messages and tasks, with actions: mark a step done for the patient, log a task done, resend failed reminders, reschedule (India time), and release the slot with a reason. The task queue at `/dashboard/tasks` shows each task's SLA in words (overdue, due within an hour, on time). Every patient read is audited.
+  Verified: 436 pytest (9 new dashboard tests), 63 Vitest, Playwright on the desktop project for the coordinator flow, ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Known issues and scope notes:**
+  - Scope: real-time updates (server-sent events) and a generated OpenAPI client are not built. The web types are written by hand in `packages/shared`. Both are future work.
+  - Readiness stands in for the risk score until Phase 7 lands.
+  - Times are shown in Asia/Kolkata, and the reschedule form takes India time. Facilities in other timezones need their own offset (future work).
+  - Staff screens are tested on the desktop project only. The table scrolls sideways on phones, but that layout is not tested yet.
+
 - [ ] Phase 7 — Cancellation Risk Score (rules v1 only) · branch `phase-7-risk-score`
 - [ ] Phase 10 — Analytics & ROI · branch `phase-10-analytics`
 - [ ] Phase 9 — Waitlist Backfill (lite) · branch `phase-9-waitlist`
