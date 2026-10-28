@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–5 merged (latest tag `v0.5.0`). Working on Phase 6 (AI Prep Assistant) on `phase-6-ai-assistant`; `main` merged in, DB at migration 0006.
+**Status:** Phases 0–5 merged (latest tag `v0.5.0`). Phase 6 (AI Prep Assistant) complete on `phase-6-ai-assistant`, merging to `main` as `v0.6.0`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 6, plan items 4 (nurse inbox routes), 5 (web), 6 (`make eval`), 7 (remaining tests).
+**Next:** Phase 6b (guest login and demo mode) on `phase-6b-guest-demo`, after Phase 6 is merged.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -90,7 +90,7 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
 
   Patients open a single-use link and get a mobile-first portal in English or Hindi. It shows their procedure (countdown, arrival, map, call, `.ics`), a readiness checklist and a prep timeline. From there they can confirm steps, report problems (critical ones escalate and flag the appointment AT_RISK through the same service as SMS replies) and ask to reschedule. Approved step translations are cached (migration 0005) and pre-translated by a Beat job, so the portal never waits for the LLM.
   Verified: 313 pytest + 45 Vitest + 4 Playwright E2E (phone viewport, axe WCAG 2.2 AA), ruff/mypy strict/ESLint/tsc/Prettier clean, Next.js build OK; CI green (run 40625645861) including the new E2E job, Docker build and compose smoke test.
-- [ ] Phase 6 — AI Prep Assistant · branch `phase-6-ai-assistant` (in progress)
+- [x] **Phase 6 — AI Prep Assistant** · 2026-10-28 · `v0.6.0` · branch `phase-6-ai-assistant`
   **Plan:**
   1. Deterministic safety layer (`domain/red_flags.py`, `domain/deidentify.py`):
      - Red-flag rules in English, Hindi and romanised Hindi: chest pain, trouble breathing, severe bleeding, fainting, severe abdominal pain, allergic reaction, stroke signs. Deliberately conservative: no negation handling, so a false positive goes to a nurse rather than a missed emergency.
@@ -112,6 +112,13 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
      - The rules layer always runs. The full pipeline runs against the real model when `ANTHROPIC_API_KEY` is set.
      - The report shows a pass rate per category, and the run exits non-zero on any missed red flag.
   7. Tests: rules, de-identification (the LLM client receives only redacted text), each pipeline outcome with a fake LLM (red flag, out of protocol, unavailable, ungrounded number, bad citation, refusal), patient isolation, the inbox API and permissions, Vitest for the panels, and Playwright for asking a question and seeing an escalation in the inbox.
+  Red flags (chest pain, breathing, severe bleeding, fainting, severe abdominal pain, allergy, stroke signs) are caught by rules in English, Hindi and romanised Hindi before any LLM call. The LLM classifies triage and answers only from the patient's own approved steps, citing them. Output checks reject citations to steps that were not provided and numbers that do not appear in the cited steps. Anything else goes to the nurse inbox at `/dashboard/inbox` with a fixed reply, and emergencies get an urgent escalation and an AT_RISK appointment.
+  Verified: 406 pytest + 53 Vitest + 5 Playwright (phone viewport, including the red-flag question reaching the inbox), ruff, mypy strict, ESLint, tsc and Prettier clean. `make eval` (41 cases): 17/17 red flags caught, 0 false alarms on 10 ordinary questions. The LLM cases were skipped because no API key is set on this machine.
+  **Known issues:**
+  - The 8 LLM eval cases and the live LLM answer path have not been run against the real model (no `ANTHROPIC_API_KEY` on the dev machine). Their logic is covered by tests with a fake client only.
+  - `make` is not installed on the Windows dev machine, so the eval was run with `uv run python apps/api/evals/run_assistant_eval.py`. The Makefile target works where `make` exists.
+  - Assistant requests are not rate-limited yet (the portal already handles HTTP 429). The limiter comes in Phase 6b.
+
 - [ ] Phase 6b — Guest login and demo mode · branch `phase-6b-guest-demo` (after Phase 6, tag `v0.6.1`)
 - [ ] Phase 8 — Coordinator Dashboard · branch `phase-8-coordinator-dashboard`
 - [ ] Phase 7 — Cancellation Risk Score (rules v1 only) · branch `phase-7-risk-score`
