@@ -186,3 +186,11 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
 - **Calendar.** `GET /patient/appointments/{id}/calendar.ics` (RFC 5545) carries only the procedure name, arrival time, place and a link back to the portal.
 - **Languages and accessibility.** The portal's own text is in English and Hindi, and the patient's choice is remembered. Steps show the cached translation, or the approved English text with a notice. The portal is mobile-first, with large type, 48 px tap targets, and states shown by icon and word as well as colour. It is server-rendered, with client JS only for the action buttons. A PWA manifest lets patients add it to the home screen, and an emergency notice is always shown.
 - **Tests.** Playwright runs on a phone viewport against the real API and Postgres, including axe WCAG 2.2 AA scans. It runs in CI (`e2e` job) and locally with `make e2e`.
+
+## 8. Integrations (CSV import)
+
+- **Route.** `POST /imports/patients` and `POST /imports/appointments` (`routers/imports.py`), with `dry_run` on by default.
+- **Parsing.** `domain/csv_import.py` is pure: it matches headers to fields, applies the mapping, lists ignored columns and enforces the 1 MB and 500-row caps.
+- **Rows.** `services/imports.py` runs every row through `PatientService` or `AppointmentService` in its own savepoint. A bad row is reported and undone while the others continue. A dry run rolls the whole import back, and a commit happens only when every row is valid.
+- **Errors.** Reports carry the line, the column and a rule, never a cell value. A committed import writes one `import` audit row, and each matched patient is audited as a read.
+- **Future.** FHIR R4 resources are planned after v1.0.0 (see `docs/INTEGRATIONS.md`).

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from prefix_api.db.models import Facility, Organization, ProcedureType
@@ -26,6 +26,18 @@ def get_facility(
     return session.scalar(
         select(Facility).where(
             Facility.id == facility_id, Facility.organization_id == organization_id
+        )
+    )
+
+
+def get_facility_by_name(
+    session: Session, organization_id: uuid.UUID, name: str
+) -> Facility | None:
+    """Matches ignoring case, so a spreadsheet's "main campus" finds "Main Campus"."""
+    return session.scalar(
+        select(Facility).where(
+            Facility.organization_id == organization_id,
+            func.lower(Facility.name) == name.strip().lower(),
         )
     )
 

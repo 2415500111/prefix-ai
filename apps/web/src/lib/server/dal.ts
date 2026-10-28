@@ -141,3 +141,8 @@ const WAITLIST_MANAGERS: ReadonlySet<Role> = new Set(["ADMIN", "COORDINATOR"]);
 export function canManageWaitlist(role: Role): boolean {
   return WAITLIST_MANAGERS.has(role);
 }
+
+/** Mirrors the API's PATIENT_WRITE and APPOINTMENT_WRITE permissions for CSV imports. */
+export function canImportRecords(role: Role): boolean {
+  return WAITLIST_MANAGERS.has(role);
+}
