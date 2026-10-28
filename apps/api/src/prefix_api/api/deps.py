@@ -15,6 +15,7 @@ from prefix_api.db.models import User
 from prefix_api.domain.errors import AuthenticationError
 from prefix_api.domain.permissions import Permission
 from prefix_api.domain.principal import PatientPrincipal, StaffPrincipal
+from prefix_api.services.assistant.llm import AssistantLLM
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -42,6 +43,15 @@ def utcnow() -> dt.datetime:
 
 
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
+
+
+def get_assistant_llm(request: Request) -> AssistantLLM | None:
+    """Built once per app; None when no LLM is configured (questions go to nurses)."""
+    llm: AssistantLLM | None = request.app.state.assistant_llm
+    return llm
+
+
+AssistantLLMDep = Annotated[AssistantLLM | None, Depends(get_assistant_llm)]
 # scope="function": commit BEFORE the response is sent, so a failed commit (including
 # its audit rows) can never be reported to the client as success.
 DbSession = Annotated[Session, Depends(get_db, scope="function")]

@@ -1,5 +1,6 @@
 """All ORM models. Importing this package registers every table on ``Base.metadata``."""
 
+from prefix_api.db.models.assistant import AssistantExchange
 from prefix_api.db.models.audit import AuditLog
 from prefix_api.db.models.engagement import CheckIn, Message, PatientTimelineEvent
 from prefix_api.db.models.operations import Escalation, RiskScore, Task, WaitlistEntry
@@ -11,6 +12,7 @@ from prefix_api.db.models.user import RefreshToken, User
 
 __all__ = [
     "Appointment",
+    "AssistantExchange",
     "AuditLog",
     "CheckIn",
     "Escalation",

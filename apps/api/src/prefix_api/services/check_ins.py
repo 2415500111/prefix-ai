@@ -131,12 +131,13 @@ def create_escalation(
     severity: EscalationSeverity,
     summary: str,
     purpose: str,
+    source: EscalationSource = EscalationSource.PATIENT_REPORTED_PROBLEM,
 ) -> Escalation:
     escalation = Escalation(
         organization_id=patient.organization_id,
         patient_id=patient.id,
         appointment_id=appointment.id,
-        source=EscalationSource.PATIENT_REPORTED_PROBLEM,
+        source=source,
         severity=severity,
         summary=summary,
     )
@@ -163,6 +164,7 @@ def create_task(
     title: str,
     now: dt.datetime,
     escalation_id: uuid.UUID | None = None,
+    due_in: dt.timedelta = TASK_DUE,
 ) -> Task:
     task = Task(
         organization_id=patient.organization_id,
@@ -171,7 +173,7 @@ def create_task(
         appointment_id=appointment_id,
         patient_id=patient.id,
         escalation_id=escalation_id,
-        due_at=now + TASK_DUE,
+        due_at=now + due_in,
     )
     session.add(task)
     return task

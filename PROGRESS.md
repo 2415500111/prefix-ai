@@ -4,8 +4,23 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–5 merged (latest tag `v0.5.0`).
-**Next:** Phase 6 (AI Prep Assistant) on `phase-6-ai-assistant`; write its plan below first.
+**Status:** Phases 0–5 merged (latest tag `v0.5.0`). Phase 6 (AI Prep Assistant) complete on `phase-6-ai-assistant`, merging to `main` as `v0.6.0`.
+**Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
+**Next:** Phase 6b (guest login and demo mode) on `phase-6b-guest-demo`, after Phase 6 is merged.
+
+**Revised order** (decided with the owner; numbers stay the same, the sequence changes):
+1. Phase 6 — AI Prep Assistant (finish)
+2. Phase 6b — Guest login and demo mode (new, tag `v0.6.1`)
+3. Phase 8 — Coordinator Dashboard (full, `v0.8.0`)
+4. Phase 7 — Risk score, v1 transparent rules only; ML model is future work (`v0.7.0`)
+5. Phase 10 — Analytics and ROI, one page with CSV export (`v0.10.0`)
+6. Phase 9 — Waitlist, lite: manual backfill, single offer, DB locking (`v0.9.0`)
+7. Phase 11 — Integrations, lite: CSV import with dry-run; FHIR is future work (`v0.11.0`)
+8. Phase 12 — Release, lite: security headers, rate limits, COMPLIANCE.md, DEPLOYMENT.md, README walkthrough, `v1.0.0`
+
+Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they may not be in ascending order in history.
+
+**Known issues:** none open.
 
 **Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 
@@ -75,10 +90,39 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
   Patients open a single-use link and get a mobile-first portal in English or Hindi. It shows their procedure (countdown, arrival, map, call, `.ics`), a readiness checklist and a prep timeline. From there they can confirm steps, report problems (critical ones escalate and flag the appointment AT_RISK through the same service as SMS replies) and ask to reschedule. Approved step translations are cached (migration 0005) and pre-translated by a Beat job, so the portal never waits for the LLM.
   Verified: 313 pytest + 45 Vitest + 4 Playwright E2E (phone viewport, axe WCAG 2.2 AA), ruff/mypy strict/ESLint/tsc/Prettier clean, Next.js build OK; CI green (run 40625645861) including the new E2E job, Docker build and compose smoke test.
-- [ ] Phase 6 — AI Prep Assistant
-- [ ] Phase 7 — Cancellation Risk Score
-- [ ] Phase 8 — Coordinator Dashboard
-- [ ] Phase 9 — Waitlist Backfill
-- [ ] Phase 10 — Analytics & ROI
-- [ ] Phase 11 — Integrations
-- [ ] Phase 12 — Hardening + Release
+- [x] **Phase 6 — AI Prep Assistant** · 2026-10-28 · `v0.6.0` · branch `phase-6-ai-assistant`
+  **Plan:**
+  1. Deterministic safety layer (`domain/red_flags.py`, `domain/deidentify.py`):
+     - Red-flag rules in English, Hindi and romanised Hindi: chest pain, trouble breathing, severe bleeding, fainting, severe abdominal pain, allergic reaction, stroke signs. Deliberately conservative: no negation handling, so a false positive goes to a nurse rather than a missed emergency.
+     - De-identification of patient text before any LLM call: known patient names, phone numbers, emails, URLs, ID-like numbers (MRN, Aadhaar), PIN codes and dates become placeholders.
+  2. LLM layer (`services/assistant/llm.py`): the only place the assistant calls Claude, with the model from `LLM_MODEL` and structured JSON outputs. Every text passes through the de-identifier here, so no caller can skip it.
+     - Triage classifier: red flag yes/no, plus whether the question is about this patient's prep.
+     - Grounded answer: answer text plus cited step ids, and a flag saying whether the steps cover the question.
+     - Versioned prompt files (`prompts/assistant_triage_v1.md`, `prompts/assistant_answer_v1.md`); the version is stored with every exchange.
+  3. Assistant pipeline (`services/assistant/service.py`, migration 0006 `assistant_exchange`):
+     - Order: rules → LLM triage → retrieval over only this patient's applicable steps (pgvector over the appointment's active timeline steps) → grounded answer → output checks.
+     - Output checks: citations must be a subset of the steps provided, and every number in the answer must appear in the cited steps.
+     - Red flags (from the rules or the LLM) give a fixed, human-written emergency message plus an URGENT escalation and call task. Out-of-protocol questions, failed checks, refusals and an unavailable LLM give a fixed "passed to your care team" message plus an escalation and a nurse task. Escalation never depends on the LLM.
+     - The question and answer are stored encrypted; everything is audited.
+  4. API: `POST /patient/assistant/questions` and `GET /patient/assistant/questions` (the patient's own history). Nurse inbox: `GET /escalations` (open first, by severity), `POST /escalations/{id}/acknowledge`, `POST /escalations/{id}/resolve` (with a note), all needing `escalation:handle`.
+  5. Web:
+     - Portal: an "Ask about your prep" panel showing the answer with cited steps (links into the timeline), or the escalation message, plus history. English and Hindi.
+     - Dashboard: `/dashboard/inbox` (nurse inbox) with severity, patient, the question, and acknowledge/resolve actions.
+  6. Evaluation: `make eval` runs 30+ cases from `apps/api/evals/assistant_cases.toml` (red flags in three languages, in-protocol questions with the expected cited step, out-of-protocol questions, prompt injection, PHI in the question).
+     - The rules layer always runs. The full pipeline runs against the real model when `ANTHROPIC_API_KEY` is set.
+     - The report shows a pass rate per category, and the run exits non-zero on any missed red flag.
+  7. Tests: rules, de-identification (the LLM client receives only redacted text), each pipeline outcome with a fake LLM (red flag, out of protocol, unavailable, ungrounded number, bad citation, refusal), patient isolation, the inbox API and permissions, Vitest for the panels, and Playwright for asking a question and seeing an escalation in the inbox.
+  Red flags (chest pain, breathing, severe bleeding, fainting, severe abdominal pain, allergy, stroke signs) are caught by rules in English, Hindi and romanised Hindi before any LLM call. The LLM classifies triage and answers only from the patient's own approved steps, citing them. Output checks reject citations to steps that were not provided and numbers that do not appear in the cited steps. Anything else goes to the nurse inbox at `/dashboard/inbox` with a fixed reply, and emergencies get an urgent escalation and an AT_RISK appointment.
+  Verified: 406 pytest + 53 Vitest + 5 Playwright (phone viewport, including the red-flag question reaching the inbox), ruff, mypy strict, ESLint, tsc and Prettier clean. `make eval` (41 cases): 17/17 red flags caught, 0 false alarms on 10 ordinary questions. The LLM cases were skipped because no API key is set on this machine.
+  **Known issues:**
+  - The 8 LLM eval cases and the live LLM answer path have not been run against the real model (no `ANTHROPIC_API_KEY` on the dev machine). Their logic is covered by tests with a fake client only.
+  - `make` is not installed on the Windows dev machine, so the eval was run with `uv run python apps/api/evals/run_assistant_eval.py`. The Makefile target works where `make` exists.
+  - Assistant requests are not rate-limited yet (the portal already handles HTTP 429). The limiter comes in Phase 6b.
+
+- [ ] Phase 6b — Guest login and demo mode · branch `phase-6b-guest-demo` (after Phase 6, tag `v0.6.1`)
+- [ ] Phase 8 — Coordinator Dashboard · branch `phase-8-coordinator-dashboard`
+- [ ] Phase 7 — Cancellation Risk Score (rules v1 only) · branch `phase-7-risk-score`
+- [ ] Phase 10 — Analytics & ROI · branch `phase-10-analytics`
+- [ ] Phase 9 — Waitlist Backfill (lite) · branch `phase-9-waitlist`
+- [ ] Phase 11 — Integrations (lite) · branch `phase-11-integrations`
+- [ ] Phase 12 — Hardening + Release (lite) · branch `phase-12-release`

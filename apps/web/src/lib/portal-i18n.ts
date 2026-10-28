@@ -50,6 +50,17 @@ interface PortalText {
   noAppointments: string;
   language: string;
   signOut: string;
+  askTitle: string;
+  askHint: string;
+  askLabel: string;
+  askSend: string;
+  askSending: string;
+  askEmpty: string;
+  askFailed: string;
+  askRateLimited: string;
+  askSources: string;
+  askHistory: string;
+  askDisclaimer: string;
 }
 
 export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
@@ -99,6 +110,20 @@ export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
     noAppointments: "You have no upcoming procedures.",
     language: "Language",
     signOut: "Sign out",
+    askTitle: "Ask about your prep",
+    askHint: "Ask a question about the steps in your plan.",
+    askLabel: "Your question",
+    askSend: "Send question",
+    askSending: "Sending…",
+    askEmpty: "Please write a question first.",
+    askFailed:
+      "We could not send your question. Please try again, or call the hospital.",
+    askRateLimited:
+      "You have asked many questions. Please wait a few minutes and try again.",
+    askSources: "Based on these steps",
+    askHistory: "Earlier questions",
+    askDisclaimer:
+      "Answers come only from your prep plan. For anything else, your care team answers.",
   },
   hi: {
     greeting: (name) => `नमस्ते, ${name}`,
@@ -147,6 +172,20 @@ export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
     noAppointments: "आपकी कोई आने वाली प्रक्रिया नहीं है।",
     language: "भाषा",
     signOut: "साइन आउट",
+    askTitle: "तैयारी के बारे में पूछें",
+    askHint: "अपनी योजना के चरणों के बारे में सवाल पूछें।",
+    askLabel: "आपका सवाल",
+    askSend: "सवाल भेजें",
+    askSending: "भेजा जा रहा है…",
+    askEmpty: "पहले कोई सवाल लिखें।",
+    askFailed:
+      "आपका सवाल नहीं भेजा जा सका। कृपया फिर से कोशिश करें या अस्पताल को फ़ोन करें।",
+    askRateLimited:
+      "आपने बहुत सारे सवाल पूछे हैं। कृपया कुछ मिनट बाद फिर से कोशिश करें।",
+    askSources: "इन चरणों के आधार पर",
+    askHistory: "पहले के सवाल",
+    askDisclaimer:
+      "जवाब केवल आपकी तैयारी की योजना से आते हैं। बाकी सवालों के जवाब आपकी देखभाल टीम देगी।",
   },
 };
 

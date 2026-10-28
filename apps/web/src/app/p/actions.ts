@@ -1,6 +1,6 @@
 "use server";
 
-import type { PatientSession } from "@prefix/shared";
+import type { AssistantReply, PatientSession } from "@prefix/shared";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -15,6 +15,12 @@ import { toPortalLang } from "@/lib/portal-i18n";
 
 export interface ActionResult {
   ok: boolean;
+}
+
+export interface AssistantState {
+  reply: AssistantReply | null;
+  /** A key from portal-i18n, so the message follows the patient's language. */
+  error: "empty" | "failed" | "rateLimited" | null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,4 +99,39 @@ export async function chooseLanguage(formData: FormData): Promise<void> {
 export async function signOut(): Promise<void> {
   await clearPatientSession();
   redirect(EXPIRED_PATH);
+}
+
+const MAX_QUESTION = 1000;
+
+/** Ask the assistant about one appointment. Anything it cannot answer goes to a nurse. */
+export async function askAssistant(
+  appointmentId: string,
+  _previous: AssistantState | null,
+  formData: FormData,
+): Promise<AssistantState> {
+  const question = String(formData.get("question") ?? "").trim();
+  const language = String(formData.get("lang") ?? "en");
+  if (!UUID.test(appointmentId)) return { reply: null, error: "failed" };
+  if (question.length < 2) return { reply: null, error: "empty" };
+  try {
+    const reply = await patientApi<AssistantReply>(
+      "/patient/assistant/questions",
+      {
+        method: "POST",
+        body: {
+          appointment_id: appointmentId,
+          question: question.slice(0, MAX_QUESTION),
+          language,
+        },
+      },
+    );
+    return { reply, error: null };
+  } catch (error) {
+    // Only API errors are handled here; redirects thrown by patientApi must pass through.
+    if (error instanceof ApiError && error.status === 429) {
+      return { reply: null, error: "rateLimited" };
+    }
+    if (error instanceof ApiError) return { reply: null, error: "failed" };
+    throw error;
+  }
 }

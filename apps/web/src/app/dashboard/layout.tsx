@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/server/dal";
 const NAV = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/protocols", label: "Protocols" },
+  { href: "/dashboard/inbox", label: "Inbox" },
 ] as const;
 
 async function UserMenu() {

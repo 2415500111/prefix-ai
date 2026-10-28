@@ -1,10 +1,19 @@
 """Endpoints used by patients themselves (authenticated with a magic-link session)."""
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
 
-from prefix_api.api.deps import CurrentPatient, DbSession, Now, SettingsDep, patient_data_route
+from prefix_api.api.deps import (
+    AssistantLLMDep,
+    CurrentPatient,
+    DbSession,
+    Now,
+    SettingsDep,
+    patient_data_route,
+)
+from prefix_api.schemas.assistant import AssistantQuestionIn, AssistantReplyOut
 from prefix_api.schemas.patients import (
     LanguageCode,
     MagicLinkRedeem,
@@ -12,6 +21,8 @@ from prefix_api.schemas.patients import (
     PatientSessionOut,
 )
 from prefix_api.schemas.portal import PortalAppointment, ProblemReport, RescheduleRequest
+from prefix_api.services.assistant.service import AssistantService
+from prefix_api.services.embeddings import get_embedding_provider
 from prefix_api.services.patient_access import PatientAccessService
 from prefix_api.services.portal import PortalService
 
@@ -105,3 +116,34 @@ def calendar(
             "Cache-Control": "no-store",
         },
     )
+
+
+def _assistant(session: DbSession, settings: SettingsDep, llm: AssistantLLMDep) -> AssistantService:
+    return AssistantService(session, llm, get_embedding_provider(settings.embedding_provider))
+
+
+AssistantDep = Annotated[AssistantService, Depends(_assistant)]
+
+
+@router.post("/assistant/questions", dependencies=patient_data)
+def ask_assistant(
+    body: AssistantQuestionIn, principal: CurrentPatient, assistant: AssistantDep, now: Now
+) -> AssistantReplyOut:
+    """Answer from the patient's own approved steps, or hand the question to a person."""
+    reply = assistant.ask(
+        principal, body.appointment_id, body.question, language=body.language, now=now
+    )
+    return AssistantReplyOut.build(reply)
+
+
+@router.get("/assistant/questions", dependencies=patient_data)
+def assistant_history(
+    appointment_id: uuid.UUID,
+    principal: CurrentPatient,
+    assistant: AssistantDep,
+    lang: LanguageCode = "en",
+) -> list[AssistantReplyOut]:
+    return [
+        AssistantReplyOut.build(reply)
+        for reply in assistant.history(principal, appointment_id, language=lang)
+    ]

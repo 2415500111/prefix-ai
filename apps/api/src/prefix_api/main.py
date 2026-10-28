@@ -25,12 +25,14 @@ from prefix_api.routers import (
     admin,
     appointments,
     auth,
+    escalations,
     health,
     patient_portal,
     patients,
     protocols,
     webhooks,
 )
+from prefix_api.services.assistant.llm import build_assistant_llm
 
 logger = get_logger(__name__)
 
@@ -78,6 +80,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.session_factory = session_factory
+    app.state.assistant_llm = build_assistant_llm(settings)
 
     register_error_handlers(app)
 
@@ -100,5 +103,6 @@ def create_app(
     app.include_router(patient_portal.router)
     app.include_router(protocols.router)
     app.include_router(appointments.router)
+    app.include_router(escalations.router)
     app.include_router(webhooks.router)
     return app

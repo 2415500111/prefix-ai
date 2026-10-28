@@ -79,6 +79,8 @@ class Settings(BaseSettings):
     smtp_starttls: bool = True
     dispatch_batch_size: int = Field(default=100, ge=1, le=1000)
     translation_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
+    # The patient waits on the assistant: past this, the question goes to a nurse instead.
+    assistant_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     embedding_provider: EmbeddingProviderName = "local"
 
     @field_validator("cors_origins", mode="before")
