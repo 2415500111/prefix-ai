@@ -19,9 +19,10 @@ test("a guest tries the demo: sees the demo banner, the nurse inbox and a demo p
 
   await page.goto("/dashboard");
   const patientPage = context.waitForEvent("page");
+  // The demo opens the patient view in a new tab; do not wait for the click to settle.
   await page
     .getByRole("button", { name: "View patient demo (English)" })
-    .click();
+    .click({ noWaitAfter: true });
   const portal = await patientPage;
   await portal.waitForURL(/\/p\/home$/);
   await expect(portal.getByRole("heading", { level: 1 })).toContainText(

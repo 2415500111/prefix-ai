@@ -1,12 +1,15 @@
 import "server-only";
 
 import type {
+  Drawer,
   EscalationItem,
   Me,
   ProcedureType,
   Protocol,
   ProtocolSummary,
+  QueueItem,
   Role,
+  UpcomingRow,
 } from "@prefix/shared";
 import { notFound, redirect } from "next/navigation";
 
@@ -76,4 +79,19 @@ const HANDLERS: ReadonlySet<Role> = new Set([
 /** Mirrors the API's ESCALATION_HANDLE permission; the API remains the authority. */
 export function canHandleEscalations(role: Role): boolean {
   return HANDLERS.has(role);
+}
+
+/** Procedures in the next `hours` hours, least ready first (escalations before everything). */
+export function listUpcoming(hours = 72): Promise<UpcomingRow[]> {
+  return guarded(api<UpcomingRow[]>(`/dashboard/upcoming?hours=${hours}`));
+}
+
+export function getPatientDrawer(appointmentId: string): Promise<Drawer> {
+  return guarded(
+    api<Drawer>(`/dashboard/appointments/${encodeURIComponent(appointmentId)}`),
+  );
+}
+
+export function listTaskQueue(): Promise<QueueItem[]> {
+  return guarded(api<QueueItem[]>("/dashboard/queue"));
 }
