@@ -25,7 +25,8 @@ function note(formData: FormData): string | null {
   return value ? value.slice(0, MAX_NOTE) : null;
 }
 
-/** Exchange the single-use token from the link for an httpOnly session cookie. */
+/** Exchange the single-use token from the link for an httpOnly session cookie.
+ * The caller navigates on success (a redirect here would reject the client's await). */
 export async function redeemMagicLink(token: string): Promise<ActionResult> {
   if (!/^[\w-]{20,200}$/.test(token)) return { ok: false };
   let session: PatientSession;
@@ -40,7 +41,7 @@ export async function redeemMagicLink(token: string): Promise<ActionResult> {
     throw error;
   }
   await storePatientSession(session.access_token, session.expires_at);
-  redirect("/p/home");
+  return { ok: true };
 }
 
 async function run(path: string, body?: unknown): Promise<ActionResult> {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { redeemMagicLink } from "./actions";
@@ -34,6 +35,7 @@ export function RedeemLink() {
   const [status, setStatus] = useState<Status>("working");
   const [, startTransition] = useTransition();
   const started = useRef(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (started.current) return;
@@ -48,12 +50,13 @@ export function RedeemLink() {
       }
       try {
         const result = await redeemMagicLink(token);
-        if (!result.ok) setStatus("invalid");
+        if (result.ok) router.replace("/p/home");
+        else setStatus("invalid");
       } catch {
         setStatus("error");
       }
     });
-  }, []);
+  }, [router]);
 
   const message = MESSAGES[status];
   return (
