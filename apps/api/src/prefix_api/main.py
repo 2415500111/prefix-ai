@@ -25,6 +25,7 @@ from prefix_api.routers import (
     protocols,
     webhooks,
 )
+from prefix_api.services.assistant.llm import build_assistant_llm
 
 
 def create_app(
@@ -54,6 +55,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.session_factory = session_factory
+    app.state.assistant_llm = build_assistant_llm(settings)
 
     register_error_handlers(app)
 

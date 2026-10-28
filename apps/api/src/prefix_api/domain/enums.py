@@ -180,3 +180,13 @@ class AuditAction(StrEnum):
     MAGIC_LINK_ISSUED = "MAGIC_LINK_ISSUED"
     MAGIC_LINK_REDEEMED = "MAGIC_LINK_REDEEMED"
     MAGIC_LINK_REJECTED = "MAGIC_LINK_REJECTED"
+
+
+class AssistantOutcome(StrEnum):
+    ANSWERED = "ANSWERED"
+    # Escalated: a fixed, human-written message is shown instead of an LLM answer.
+    RED_FLAG = "RED_FLAG"
+    OUT_OF_PROTOCOL = "OUT_OF_PROTOCOL"
+    NOT_COVERED = "NOT_COVERED"
+    CHECK_FAILED = "CHECK_FAILED"
+    UNAVAILABLE = "UNAVAILABLE"
