@@ -54,7 +54,9 @@ def step_view(
         return StepView(
             StepState.PROBLEM, can_confirm=requires_confirmation, can_report_problem=False
         )
-    if now < send_at:
+    # send_at is when a reminder may go out; quiet hours can push a late booking's
+    # catch-up past the step's own time, but the step applies from due_at regardless.
+    if now < min(send_at, due_at):
         return StepView(StepState.UPCOMING, can_confirm=False, can_report_problem=True)
     if not requires_confirmation:
         return StepView(StepState.ACTIVE, can_confirm=False, can_report_problem=True)

@@ -282,6 +282,10 @@ HOUR = dt.timedelta(hours=1)
         (TimelineEventStatus.SENT, False, -2 * HOUR, HOUR, None, StepState.ACTIVE),
         (TimelineEventStatus.PENDING, False, HOUR, 2 * HOUR, None, StepState.UPCOMING),
         (TimelineEventStatus.SENT, False, -HOUR, HOUR, CheckInResponse.NO, StepState.PROBLEM),
+        # A late booking at night: the catch-up reminder waits until 07:00, but the step
+        # already applies and can be confirmed in the portal.
+        (TimelineEventStatus.PENDING, True, 6 * HOUR, -HOUR, None, StepState.DUE),
+        (TimelineEventStatus.PENDING, False, 6 * HOUR, -HOUR, None, StepState.ACTIVE),
     ],
 )
 def test_step_states(
