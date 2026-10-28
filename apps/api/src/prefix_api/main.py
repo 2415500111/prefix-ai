@@ -3,18 +3,24 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import OperationalError
 
 from prefix_api import __version__
 from prefix_api.api.errors import register_error_handlers
 from prefix_api.core.config import Settings, get_settings
 from prefix_api.core.crypto import configure_crypto
-from prefix_api.core.logging import configure_logging
+from prefix_api.core.logging import configure_logging, get_logger
 from prefix_api.core.middleware import (
     REQUEST_ID_HEADER,
     audit_backstop_middleware,
     request_context_middleware,
 )
-from prefix_api.db.session import SessionFactory, create_db_engine, create_session_factory
+from prefix_api.db.session import (
+    SessionFactory,
+    create_db_engine,
+    create_session_factory,
+    database_location,
+)
 from prefix_api.routers import (
     admin,
     appointments,
@@ -26,6 +32,22 @@ from prefix_api.routers import (
     webhooks,
 )
 from prefix_api.services.assistant.llm import build_assistant_llm
+
+logger = get_logger(__name__)
+
+
+def _log_database_reachability(session_factory: SessionFactory) -> None:
+    """Report at startup whether the database answers. The API still starts so /health works;
+    requests that need the database then fail fast with a 503 and the same log line."""
+    engine = session_factory.kw["bind"]
+    where = database_location(engine)
+    try:
+        with engine.connect():
+            pass
+    except OperationalError:
+        logger.error(f"Database not reachable at {where}")
+        return
+    logger.info("database.reachable", where=where)
 
 
 def create_app(
@@ -41,6 +63,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if owns_engine:
+            _log_database_reachability(session_factory)
         yield
         if owns_engine and session_factory.kw.get("bind") is not None:
             session_factory.kw["bind"].dispose()
