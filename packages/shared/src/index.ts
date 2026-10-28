@@ -6,7 +6,8 @@ export interface HealthResponse {
   version: string;
 }
 
-export type Role = "ADMIN" | "COORDINATOR" | "NURSE" | "CLINICIAN" | "VIEWER";
+export type Role =
+  "ADMIN" | "COORDINATOR" | "NURSE" | "CLINICIAN" | "VIEWER" | "DEMO_VIEWER";
 
 export interface Me {
   id: string;
@@ -191,4 +192,16 @@ export interface EscalationItem {
   acknowledged_at: string | null;
   resolved_at: string | null;
   resolution_note: string | null;
+}
+
+/* Guest demo (see apps/api/src/prefix_api/schemas/demo.py). */
+
+export interface Capabilities {
+  guest_login: boolean;
+}
+
+export interface DemoPatientLink {
+  url: string;
+  patient_name: string;
+  language: "en" | "hi";
 }

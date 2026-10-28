@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import {
   Card,
@@ -6,10 +7,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getCurrentUser } from "@/lib/server/dal";
+
+import { DemoControls } from "./demo/demo-controls";
 
 export const metadata: Metadata = {
   title: "Dashboard",
 };
+
+async function Demo() {
+  const user = await getCurrentUser();
+  return <DemoControls isAdmin={user.role === "ADMIN"} />;
+}
 
 export default function DashboardPage() {
   return (
@@ -25,6 +34,9 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
       </Card>
+      <Suspense fallback={null}>
+        <Demo />
+      </Suspense>
     </main>
   );
 }

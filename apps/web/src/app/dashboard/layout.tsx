@@ -11,6 +11,21 @@ const NAV = [
   { href: "/dashboard/inbox", label: "Inbox" },
 ] as const;
 
+/** Guests must always know that the data is made up. */
+async function DemoBanner() {
+  const user = await getCurrentUser();
+  if (user.role !== "DEMO_VIEWER") return null;
+  return (
+    <div
+      role="status"
+      className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-950"
+    >
+      Demo mode: every patient is made up, no messages are sent, and the demo
+      starts fresh every night.
+    </div>
+  );
+}
+
 async function UserMenu() {
   const user = await getCurrentUser();
   return (
@@ -53,6 +68,9 @@ export default function DashboardLayout({
           </Suspense>
         </div>
       </header>
+      <Suspense fallback={null}>
+        <DemoBanner />
+      </Suspense>
       {children}
     </div>
   );

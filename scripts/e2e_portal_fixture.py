@@ -23,6 +23,7 @@ from prefix_api.schemas.appointments import AppointmentCreate
 from prefix_api.schemas.patients import PatientCreate
 from prefix_api.schemas.protocols import ProtocolIn, StepIn
 from prefix_api.services.appointments import AppointmentService
+from prefix_api.services.demo import demo_organization, populate_demo
 from prefix_api.services.embeddings import get_embedding_provider
 from prefix_api.services.patient_access import PatientAccessService
 from prefix_api.services.patients import PatientService
@@ -158,6 +159,14 @@ def main() -> None:
                 )
                 links[key] = link.url
             session.commit()
+        # The guest demo hospital, if this database has not got one yet (CI starts empty).
+        factory = create_session_factory(engine)
+        with factory() as session:
+            has_demo = demo_organization(session) is not None
+        if not has_demo:
+            populate_demo(
+                factory, now=dt.datetime.now(dt.UTC), admin_password=secrets.token_urlsafe(12)
+            )
     finally:
         engine.dispose()
     # Last line of output: the test runner parses it (logs may come before it).
