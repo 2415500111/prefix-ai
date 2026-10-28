@@ -15,6 +15,13 @@ export function filterRows(rows: UpcomingRow[], filter: Filter): UpcomingRow[] {
   );
 }
 
+/** Words for the risk level; the reasons are shown next to them. */
+const RISK_WORDS: Record<UpcomingRow["risk_level"], string> = {
+  LOW: "Low risk",
+  MEDIUM: "Medium risk",
+  HIGH: "High risk",
+};
+
 const TIME = new Intl.DateTimeFormat("en-IN", {
   weekday: "short",
   day: "numeric",
@@ -102,6 +109,9 @@ export function UpcomingTable({
                   Readiness
                 </th>
                 <th scope="col" className="py-2 pr-3 font-medium">
+                  Risk
+                </th>
+                <th scope="col" className="py-2 pr-3 font-medium">
                   Open
                 </th>
                 <th scope="col" className="py-2 font-medium">
@@ -124,6 +134,19 @@ export function UpcomingTable({
                   <td className="py-2 pr-3">{row.procedure_name}</td>
                   <td className="py-2 pr-3">
                     <ReadinessBar value={row.readiness} />
+                  </td>
+                  <td className="py-2 pr-3">
+                    <span className="font-medium">
+                      {RISK_WORDS[row.risk_level]}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">
+                      {row.risk_score}
+                    </span>
+                    {row.risk_reasons.length > 0 ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {row.risk_reasons.slice(0, 2).join(" · ")}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="py-2 pr-3">
                     {row.open_escalations > 0 ? (

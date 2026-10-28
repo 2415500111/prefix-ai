@@ -224,6 +224,10 @@ export interface UpcomingRow {
   problem_steps: number;
   open_escalations: number;
   open_tasks: number;
+  risk_score: number;
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  /** The reasons behind the risk, strongest first, in plain words. */
+  risk_reasons: string[];
 }
 
 export interface DrawerStep {

@@ -15,6 +15,12 @@ import {
 } from "./actions";
 import { ReadinessBar } from "./upcoming-table";
 
+const RISK_WORDS: Record<Drawer["appointment"]["risk_level"], string> = {
+  LOW: "Low",
+  MEDIUM: "Medium",
+  HIGH: "High",
+};
+
 const REASONS = [
   ["INADEQUATE_BOWEL_PREP", "Bowel prep not finished"],
   ["ATE_OR_DRANK", "Ate or drank too close to the procedure"],
@@ -95,6 +101,20 @@ export function PatientDrawer({
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium">Readiness</p>
         <ReadinessBar value={appointment.readiness} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">
+          Cancellation risk: {RISK_WORDS[appointment.risk_level]} (
+          {appointment.risk_score})
+        </p>
+        {appointment.risk_reasons.length > 0 ? (
+          <ul className="list-disc pl-5 text-sm text-muted-foreground">
+            {appointment.risk_reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       {drawer.escalations.length > 0 ? (
