@@ -79,7 +79,7 @@ def seed(session: Session) -> str | None:
             )
 
     session.flush()
-    _seed_sample_protocols(session, org)
+    seed_sample_protocols(session, org)
 
     password: str | None = None
     if session.scalar(select(User).where(User.email == DEMO_ADMIN_EMAIL)) is None:
@@ -97,7 +97,7 @@ def seed(session: Session) -> str | None:
     return password
 
 
-def _seed_sample_protocols(session: Session, org: Organization) -> None:
+def seed_sample_protocols(session: Session, org: Organization) -> None:
     """Create each SAMPLE protocol as a DRAFT; clinicians must review and approve them."""
     existing = set(
         session.scalars(select(PrepProtocol.name).where(PrepProtocol.organization_id == org.id))

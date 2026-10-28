@@ -48,3 +48,13 @@ def test_beat_warms_step_translations() -> None:
     assert entry["schedule"] == TRANSLATION_WARM_INTERVAL_SECONDS
     celery_app.loader.import_default_modules()
     assert "prefix_worker.translations.warm" in celery_app.tasks
+
+
+def test_beat_resets_the_guest_demo_nightly() -> None:
+    entry = celery_app.conf.beat_schedule["reset-demo-nightly"]
+
+    assert entry["task"] == "prefix_worker.demo.reset"
+    assert entry["schedule"].hour == {21}
+    assert entry["schedule"].minute == {30}
+    celery_app.loader.import_default_modules()
+    assert "prefix_worker.demo.reset" in celery_app.tasks

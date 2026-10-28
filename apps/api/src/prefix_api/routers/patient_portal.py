@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from prefix_api.api.deps import (
     AssistantLLMDep,
@@ -13,6 +13,7 @@ from prefix_api.api.deps import (
     SettingsDep,
     patient_data_route,
 )
+from prefix_api.core.rate_limit import RateLimiter
 from prefix_api.schemas.assistant import AssistantQuestionIn, AssistantReplyOut
 from prefix_api.schemas.patients import (
     LanguageCode,
@@ -127,9 +128,16 @@ AssistantDep = Annotated[AssistantService, Depends(_assistant)]
 
 @router.post("/assistant/questions", dependencies=patient_data)
 def ask_assistant(
-    body: AssistantQuestionIn, principal: CurrentPatient, assistant: AssistantDep, now: Now
+    body: AssistantQuestionIn,
+    principal: CurrentPatient,
+    assistant: AssistantDep,
+    now: Now,
+    request: Request,
 ) -> AssistantReplyOut:
     """Answer from the patient's own approved steps, or hand the question to a person."""
+    limiter: RateLimiter = request.app.state.rate_limiter
+    # Each question can call the LLM, so cap how often one patient may ask.
+    limiter.check(f"assistant:{principal.patient_id}", limit=20, window_seconds=3600)
     reply = assistant.ask(
         principal, body.appointment_id, body.question, language=body.language, now=now
     )

@@ -15,6 +15,7 @@ from prefix_api.core.middleware import (
     audit_backstop_middleware,
     request_context_middleware,
 )
+from prefix_api.core.rate_limit import RateLimiter
 from prefix_api.db.session import (
     SessionFactory,
     create_db_engine,
@@ -25,11 +26,13 @@ from prefix_api.routers import (
     admin,
     appointments,
     auth,
+    demo,
     escalations,
     health,
     patient_portal,
     patients,
     protocols,
+    tasks,
     webhooks,
 )
 from prefix_api.services.assistant.llm import build_assistant_llm
@@ -81,6 +84,7 @@ def create_app(
     app.state.settings = settings
     app.state.session_factory = session_factory
     app.state.assistant_llm = build_assistant_llm(settings)
+    app.state.rate_limiter = RateLimiter()
 
     register_error_handlers(app)
 
@@ -103,6 +107,8 @@ def create_app(
     app.include_router(patient_portal.router)
     app.include_router(protocols.router)
     app.include_router(appointments.router)
+    app.include_router(demo.router)
     app.include_router(escalations.router)
+    app.include_router(tasks.router)
     app.include_router(webhooks.router)
     return app

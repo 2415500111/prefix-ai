@@ -1,4 +1,5 @@
 import datetime as dt
+import secrets
 from functools import lru_cache
 
 from celery import shared_task
@@ -6,6 +7,7 @@ from celery import shared_task
 from prefix_api.core.config import get_settings
 from prefix_api.core.logging import get_logger
 from prefix_api.db.session import SessionFactory, create_db_engine, create_session_factory
+from prefix_api.services.demo import populate_demo
 from prefix_api.services.dispatch import dispatch_due_reminders
 from prefix_api.services.messaging.base import MessagingProvider
 from prefix_api.services.messaging.providers import build_messaging_provider
@@ -54,3 +56,14 @@ def warm_translations() -> dict[str, int]:
     """Pre-translate approved steps for upcoming non-English patients, so the portal and
     reminders can use them without waiting for the LLM."""
     return warm_step_translations(_session_factory(), _translator(), now=dt.datetime.now(dt.UTC))
+
+
+@shared_task(name="prefix_worker.demo.reset", ignore_result=True)
+def reset_demo_nightly() -> dict[str, int]:
+    """Regenerate the guest demo's synthetic patients. Scheduled nightly by beat."""
+    result = populate_demo(
+        _session_factory(),
+        now=dt.datetime.now(dt.UTC),
+        admin_password=secrets.token_urlsafe(12),
+    )
+    return {"patients": result.patients, "appointments": result.appointments}

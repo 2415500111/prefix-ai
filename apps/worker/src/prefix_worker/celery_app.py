@@ -1,6 +1,7 @@
 from typing import Any
 
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import setup_logging
 
 from prefix_api.core.config import Settings, get_settings
@@ -37,6 +38,11 @@ def create_celery_app(settings: Settings) -> Celery:
                 "schedule": REMINDER_DISPATCH_INTERVAL_SECONDS,
                 # A run that misses its slot is pointless: the next one picks everything up.
                 "options": {"expires": REMINDER_DISPATCH_INTERVAL_SECONDS},
+            },
+            # The guest demo starts fresh every night at 03:00 in India (21:30 UTC).
+            "reset-demo-nightly": {
+                "task": "prefix_worker.demo.reset",
+                "schedule": crontab(hour=21, minute=30),
             },
             "warm-translations": {
                 "task": "prefix_worker.translations.warm",

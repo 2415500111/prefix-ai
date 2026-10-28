@@ -18,12 +18,29 @@ class Permission(StrEnum):
     AUDIT_READ = "audit:read"
     USER_MANAGE = "user:manage"
     FACILITY_MANAGE = "facility:manage"
+    STEP_CONFIRM = "step:confirm"
+    TASK_COMPLETE = "task:complete"
+    DEMO_RESET = "demo:reset"
 
 
 _P = Permission
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.ADMIN: frozenset(Permission),
+    # Guests can look at everything in the demo hospital and tick things off, nothing more.
+    Role.DEMO_VIEWER: frozenset(
+        {
+            _P.PATIENT_READ,
+            _P.PATIENT_MAGIC_LINK,
+            _P.APPOINTMENT_READ,
+            _P.PROTOCOL_READ,
+            _P.ESCALATION_HANDLE,
+            _P.TASK_MANAGE,
+            _P.TASK_COMPLETE,
+            _P.STEP_CONFIRM,
+            _P.ANALYTICS_READ,
+        }
+    ),
     Role.COORDINATOR: frozenset(
         {
             _P.PATIENT_READ,
@@ -34,6 +51,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             _P.PROTOCOL_READ,
             _P.ESCALATION_HANDLE,
             _P.TASK_MANAGE,
+            _P.TASK_COMPLETE,
+            _P.STEP_CONFIRM,
             _P.ANALYTICS_READ,
         }
     ),
@@ -45,6 +64,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             _P.PROTOCOL_READ,
             _P.ESCALATION_HANDLE,
             _P.TASK_MANAGE,
+            _P.TASK_COMPLETE,
+            _P.STEP_CONFIRM,
         }
     ),
     Role.CLINICIAN: frozenset(
