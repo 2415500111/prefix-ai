@@ -101,6 +101,7 @@ The Python apps read `.env` from the current directory. That is why commands run
 | `make migration m="..."` | Autogenerate a new migration (needs the stack up) |
 | `make seed` | Load development seed data (refuses to run when `APP_ENV=production`) |
 | `make test` | pytest for api + worker, Vitest for web |
+| `make e2e` | Build the web app and run the Playwright portal tests (needs a migrated database; starts the API and web) |
 | `make lint` | ruff, ruff format check, mypy (strict), ESLint, TypeScript, Prettier check |
 | `make format` | Auto-fix with ruff and Prettier |
 | `make help` | List every target |
@@ -133,6 +134,16 @@ uv run celery --app prefix_worker.celery_app beat --loglevel INFO
 ```
 
 These need Redis at `REDIS_URL`.
+
+## Patient portal
+
+Patients open their prep plan from a single-use link (`http://localhost:3000/p#token=…`). To try it locally, with the API and web app running:
+
+```powershell
+uv run python scripts/e2e_portal_fixture.py
+```
+
+This creates a throwaway test hospital with three patients (English, Hindi, and one more) whose procedure is in two days, and prints one link for each. Open a link on your phone or in a narrow browser window. Each link works once. Staff can issue a real patient's link with `POST /patients/{id}/magic-links`.
 
 ## Configuration
 

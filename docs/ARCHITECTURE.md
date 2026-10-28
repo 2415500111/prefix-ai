@@ -123,6 +123,7 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
 | **Appointment** | Patient, facility, procedure type, clinician, approved protocol version, scheduled/arrival time, status (SCHEDULED/READY/AT_RISK/CANCELLED/COMPLETED), cancellation reason (prep-related reasons are flagged in code). |
 | **PrepProtocol** | One immutable version (`family_id` + `version`). Status DRAFT/APPROVED/RETIRED. A DB CHECK requires an approver and approval time on APPROVED rows. `is_sample` marks seeded examples. |
 | **PrepStep** | Offset in minutes before the procedure, title, instruction text, category (DIET/FASTING/MEDICATION/BOWEL_PREP/LAB/LOGISTICS/PAPERWORK), requires_confirmation, is_critical, `conditions` JSON. |
+| **PrepStepTranslation** | Cached machine translation of one approved step into one language (unique per step + language), with the model that produced it. Protocol content only, never PHI. |
 | **PatientTimelineEvent** | One step scheduled for one appointment (unique per appointment+step, which makes sending idempotent). Due/send times and status. |
 | **CheckIn** | Milestone question, status, YES/NO/HELP/OTHER response, and encrypted free-text reply. |
 | **Message** | Inbound/outbound message on SMS/WhatsApp/email/portal. Encrypted body, plus the encrypted approved original whenever the body is a translation of it. |
@@ -154,14 +155,31 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
 - **Building the timeline** (`services/timeline.py`, `domain/timeline.py`). Booking picks the procedure's approved protocol; if several exist, the coordinator must choose one. Applicable steps become `patient_timeline_event` rows with a due time and a send time in the facility timezone.
   - Whole-day offsets keep wall-clock time across DST; hour and minute offsets are exact durations.
   - **Quiet hours** run 22:00–07:00. A non-critical reminder that falls inside them moves earlier, to 21:30 the evening before. Critical steps keep their exact time.
-  - Steps already past at booking are sent as catch-ups.
+  - Steps already past at booking are sent as catch-ups. A non-critical catch-up that falls in quiet hours waits until 07:00.
   - Rescheduling cancels the old events and builds new ones from the newest approved version. Cancelling the appointment cancels every event and expires open check-ins.
 - **Dispatch** (`services/dispatch.py`, Celery beat every 60 s). Due events are claimed with `FOR UPDATE SKIP LOCKED` (PENDING → SENDING) and sent one per transaction.
   - The Message row is written before the provider call, and a partial unique index allows only one outbound message per event. An interrupted send is marked FAILED rather than retried, so a patient is never messaged twice.
   - Sending requires messaging consent and a contact for the preferred channel. Reminder text comes only from the approved step.
 - **Providers** (`services/messaging/`): Console (development), Twilio SMS and WhatsApp, SMTP email, selected by `MESSAGING_PROVIDER`.
-- **Translation** (`services/translation.py`): Claude translates only approved step text (no PHI) into the patient's language. The approved original is stored next to the translation, and any error, refusal or implausible output means the original is sent instead.
+- **Translation** (`services/translation.py`, `services/step_translations.py`): Claude translates only approved step text (no PHI) into the patient's language.
+  - Each step is translated once per language and cached in `prep_step_translation`. Dispatch reads and fills the cache, and a Beat job pre-translates steps for the next 14 days' non-English patients every 10 minutes.
+  - The approved original is stored next to every translated message. Any error, refusal, implausible output, or output that loses the title/instruction shape means the original is used instead.
+  - The reply instructions ("Reply YES…") are fixed, human-written text per language, never machine-translated.
 - **Replies** (`POST /webhooks/twilio`, Twilio-signature verified): YES, NO and HELP in English and Hindi update the latest open check-in.
   - NO on a critical step opens a HIGH escalation and marks the appointment AT_RISK.
   - HELP escalates to a nurse.
   - Any other text is stored and queued for a person, never interpreted automatically.
+
+## 7. Patient portal
+
+- **Access.** Staff issue a single-use magic link (`/p#token=…`). The token is in the URL fragment, so it never reaches server logs. The page reads it, removes it from browser history, and a Server Action exchanges it for a patient session. The session is kept in an httpOnly cookie scoped to `/p`, separate from the staff cookies. When the session expires, the patient sees how to get a new link.
+- **What the patient sees** (`GET /patient/appointments`, `services/portal.py`): upcoming procedures with time, arrival, place, map and phone links, and every step with a state computed in one pure function (`domain/portal.py`):
+  - UPCOMING before the step applies (the earlier of its due time and its reminder time).
+  - ACTIVE for instructions that apply from now on.
+  - DUE for steps to confirm, with a 4-hour grace period after their due time, then OVERDUE.
+  - DONE once confirmed, and PROBLEM once the patient reports a problem.
+- **Actions.** Confirm a step, report a problem with an optional note, ask to reschedule. The portal and SMS replies share one service (`services/check_ins.py`), so a problem has the same effect either way: a coordinator call task, plus a HIGH escalation and an AT_RISK appointment for a critical step. Free text is stored encrypted and never put in task titles.
+- **Isolation.** Every portal query filters on the patient, not just the organization. Reads are audited as the patient, and the calendar download is audited as an export.
+- **Calendar.** `GET /patient/appointments/{id}/calendar.ics` (RFC 5545) carries only the procedure name, arrival time, place and a link back to the portal.
+- **Languages and accessibility.** The portal's own text is in English and Hindi, and the patient's choice is remembered. Steps show the cached translation, or the approved English text with a notice. The portal is mobile-first, with large type, 48 px tap targets, and states shown by icon and word as well as colour. It is server-rendered, with client JS only for the action buttons. A PWA manifest lets patients add it to the home screen, and an emergency notice is always shown.
+- **Tests.** Playwright runs on a phone viewport against the real API and Postgres, including axe WCAG 2.2 AA scans. It runs in CI (`e2e` job) and locally with `make e2e`.
