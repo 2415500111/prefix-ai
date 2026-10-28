@@ -31,6 +31,7 @@ from prefix_api.routers import (
     demo,
     escalations,
     health,
+    imports,
     patient_portal,
     patients,
     protocols,
@@ -116,5 +117,6 @@ def create_app(
     app.include_router(escalations.router)
     app.include_router(tasks.router)
     app.include_router(waitlist.router)
+    app.include_router(imports.router)
     app.include_router(webhooks.router)
     return app
