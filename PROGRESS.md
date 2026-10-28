@@ -4,9 +4,8 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–4 merged (latest tag `v0.4.0`).
-Phase 5 (Patient Portal) in progress on `phase-5-patient-portal`.
-**Next:** plan item 1 (portal read API).
+**Status:** Phases 0–5 merged (latest tag `v0.5.0`).
+**Next:** Phase 6 (AI Prep Assistant) on `phase-6-ai-assistant`; write its plan below first.
 
 **Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 
@@ -58,11 +57,11 @@ Phase 5 (Patient Portal) in progress on `phase-5-patient-portal`.
 
   Appointments API that builds a DST-safe prep timeline from the approved protocol (quiet hours, catch-ups for late bookings, regenerated on reschedule and cancelled on cancel). A Celery Beat job claims due reminders every minute and sends each one exactly once through Console, Twilio SMS/WhatsApp or SMTP, and only with consent. Claude translates approved text only and falls back to the original on any failure. A signed Twilio webhook understands YES/NO/HELP in English and Hindi and escalates problems to staff.
   Verified: 277 pytest + 22 Vitest, ruff/mypy strict/ESLint/tsc/Prettier clean, Next.js build OK; CI green (run 40562750069) including Docker build and compose smoke test.
-- [ ] Phase 5 — Patient Portal (mobile-first PWA) · branch `phase-5-patient-portal`
+- [x] **Phase 5 — Patient Portal (mobile-first PWA)** · 2026-10-28 · `v0.5.0` · branch `phase-5-patient-portal`
   **Plan:**
-  1. Portal read API: `GET /patient/appointments`: the patient's upcoming appointments with procedure, time, arrival, facility (address, map link, phone, timezone) and the timeline. Each step gets a state (done / due / upcoming / overdue / problem) computed in one pure domain function. Patients only ever see their own data; every read is audited as the patient.
+  1. Portal read API: `GET /patient/appointments`: the patient's upcoming appointments with procedure, time, arrival, facility (address, map link, phone, timezone) and the timeline. Each step gets a state (done / due / upcoming / overdue / active / problem) computed in one pure domain function; steps needing confirmation stay due for a 4-hour grace period. Patients only ever see their own data; every read is audited as the patient.
   2. Check-in actions shared by the portal and SMS: one service applies YES / NO / HELP to an event. Portal endpoints: confirm a step, report a problem (optional note, stored encrypted), and request a reschedule (task for the coordinators). NO on a critical step opens a HIGH escalation, marks the appointment AT_RISK and creates a call task. The SMS webhook is refactored onto the same service.
-  3. Calendar: `GET /patient/appointments/{id}/calendar.ics` (RFC 5545, arrival time and location, an alarm the evening before; no clinical details beyond the procedure name).
+  3. Calendar: `GET /patient/appointments/{id}/calendar.ics` (RFC 5545, arrival time and location, alarms a day and two hours before; no clinical details beyond the procedure name).
   4. Translations: migration 0005 adds `prep_step_translation` (step, language → translated approved text, model). Dispatch reads and writes it. A Beat job pre-translates steps of the next 14 days' appointments for non-English patients. The portal shows the cached translation, or the approved English text with a notice. The LLM is never called while a patient waits.
   5. Web portal (`/p`):
      - The magic-link token is read from the URL fragment and exchanged by a Server Action for an httpOnly patient cookie; the fragment is then removed.
@@ -73,6 +72,9 @@ Phase 5 (Patient Portal) in progress on `phase-5-patient-portal`.
      - pytest: step states, actions and escalations, patient isolation, ICS, the translation cache and warm-up.
      - Vitest: i18n, formatting, components.
      - Playwright E2E (Chromium at a phone viewport, axe accessibility check): redeem link → confirm → report problem → Hindi. It runs in CI against a real API and Postgres via a fixture script.
+
+  Patients open a single-use link and get a mobile-first portal in English or Hindi. It shows their procedure (countdown, arrival, map, call, `.ics`), a readiness checklist and a prep timeline. From there they can confirm steps, report problems (critical ones escalate and flag the appointment AT_RISK through the same service as SMS replies) and ask to reschedule. Approved step translations are cached (migration 0005) and pre-translated by a Beat job, so the portal never waits for the LLM.
+  Verified: 313 pytest + 45 Vitest + 4 Playwright E2E (phone viewport, axe WCAG 2.2 AA), ruff/mypy strict/ESLint/tsc/Prettier clean, Next.js build OK; CI green (run 40625645861) including the new E2E job, Docker build and compose smoke test.
 - [ ] Phase 6 — AI Prep Assistant
 - [ ] Phase 7 — Cancellation Risk Score
 - [ ] Phase 8 — Coordinator Dashboard
