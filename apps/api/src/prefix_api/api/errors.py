@@ -11,6 +11,7 @@ from prefix_api.domain.errors import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    RateLimitedError,
     ValidationFailedError,
 )
 
@@ -20,6 +21,7 @@ _STATUS: dict[type[DomainError], int] = {
     PermissionDeniedError: 403,
     ConflictError: 409,
     ValidationFailedError: 422,
+    RateLimitedError: 429,
 }
 
 # Internal detail (e.g. which permission a role lacks) stays in logs, not responses.

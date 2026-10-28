@@ -42,6 +42,28 @@ export async function login(
   redirect("/dashboard");
 }
 
+/** Sign in to the synthetic demo hospital. The API decides whether guests are allowed. */
+export async function loginAsGuest(): Promise<void> {
+  let tokens: TokenPair;
+  try {
+    tokens = await api<TokenPair>("/auth/guest", {
+      method: "POST",
+      token: null,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      redirect("/login?guest=unavailable");
+    }
+    if (error instanceof ApiError && error.status === 429) {
+      redirect("/login?guest=busy");
+    }
+    redirect("/login?guest=error");
+  }
+
+  await storeSession(tokens);
+  redirect("/dashboard");
+}
+
 export async function logout(): Promise<void> {
   const refreshToken = await getRefreshToken();
   if (refreshToken) {

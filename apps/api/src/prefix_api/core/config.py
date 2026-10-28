@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     jwt_issuer: str = "prefix-ai"
     jwt_access_ttl_minutes: int = Field(default=15, ge=1, le=60)
     jwt_refresh_ttl_days: int = Field(default=7, ge=1, le=30)
+    # Guest demo login: set false in production unless a public demo is wanted (docs/DEPLOYMENT.md).
+    enable_guest_login: bool = True
+    # A guest session lasts this long, then the guest signs in again.
+    guest_session_minutes: int = Field(default=120, ge=5, le=480)
 
     magic_link_ttl_minutes: int = Field(default=1440, ge=5, le=4320)
     patient_session_ttl_minutes: int = Field(default=720, ge=15, le=1440)

@@ -70,6 +70,7 @@ const HANDLERS: ReadonlySet<Role> = new Set([
   "COORDINATOR",
   "NURSE",
   "CLINICIAN",
+  "DEMO_VIEWER",
 ]);
 
 /** Mirrors the API's ESCALATION_HANDLE permission; the API remains the authority. */

@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–5 merged (latest tag `v0.5.0`). Phase 6 (AI Prep Assistant) complete on `phase-6-ai-assistant`, merging to `main` as `v0.6.0`.
+**Status:** Phases 0–6 merged (latest tag `v0.6.0`). Phase 6b (guest login and demo mode) complete on `phase-6b-guest-demo`, merging to `main` as `v0.6.1`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 6b (guest login and demo mode) on `phase-6b-guest-demo`, after Phase 6 is merged.
+**Next:** Phase 8 (coordinator dashboard, full) on `phase-8-coordinator-dashboard`, once Phase 6b is merged.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -119,7 +119,15 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - `make` is not installed on the Windows dev machine, so the eval was run with `uv run python apps/api/evals/run_assistant_eval.py`. The Makefile target works where `make` exists.
   - Assistant requests are not rate-limited yet (the portal already handles HTTP 429). The limiter comes in Phase 6b.
 
-- [ ] Phase 6b — Guest login and demo mode · branch `phase-6b-guest-demo` (after Phase 6, tag `v0.6.1`)
+- [x] **Phase 6b — Guest login and demo mode** · 2026-10-28 · `v0.6.1` · branch `phase-6b-guest-demo`
+  A guest signs in with "Try as Guest" (`ENABLE_GUEST_LOGIN`, on by default) and gets a 2-hour `DEMO_VIEWER` session in the synthetic "Demo Hospital (guest)". The role can view everything in the demo and complete tasks, confirm steps and resolve escalations, but cannot approve protocols, manage users, reset the demo or reach other organisations. Demo reminders go to the console only. `make seed-demo` builds the hospital (2 facilities, 4 approved SAMPLE protocols, 25 synthetic patients, bookings over 7 days, reminders, answers and escalations). The demo resets nightly from the worker and from the demo admin's button. "View patient demo" opens a fresh single-use link in English or Hindi. Guest sign-in and assistant questions are rate-limited.
+  Verified: 427 pytest (13 new guest tests, plus worker tests), 56 Vitest, 6 Playwright (guest sign-in, banner, inbox, demo patient), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Known issues:**
+  - On Windows, a Playwright-started `next start` failed the portal's server actions in two runs right after a fresh `next build`. The same six tests pass when the server is started separately, or when there is no build immediately before the run. Cause not found. CI runs build and then E2E, so watch the E2E job; if it fails the same way, start the server before Playwright.
+  - Rate limits live in process memory. Repeated local E2E runs can hit the guest sign-in limit (5 per 10 minutes per address); restart the API to clear it.
+  - The nightly reset runs in the worker, so it needs a running worker and beat. Locally they are not started by default.
+  - A staff member's "View patient demo" link is issued as the demo guest, so the audit trail names the demo account, not the staff member.
+
 - [ ] Phase 8 — Coordinator Dashboard · branch `phase-8-coordinator-dashboard`
 - [ ] Phase 7 — Cancellation Risk Score (rules v1 only) · branch `phase-7-risk-score`
 - [ ] Phase 10 — Analytics & ROI · branch `phase-10-analytics`

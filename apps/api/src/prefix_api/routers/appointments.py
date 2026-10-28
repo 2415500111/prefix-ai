@@ -24,6 +24,7 @@ router = APIRouter(
 
 Reader = Annotated[StaffPrincipal, Depends(require(Permission.APPOINTMENT_READ))]
 Writer = Annotated[StaffPrincipal, Depends(require(Permission.APPOINTMENT_WRITE))]
+Confirmer = Annotated[StaffPrincipal, Depends(require(Permission.STEP_CONFIRM))]
 
 
 def _detail(appointment: Appointment, timeline: list[TimelineEntry]) -> AppointmentDetailOut:
@@ -103,3 +104,14 @@ def cancel_appointment(
 ) -> AppointmentOut:
     appointment = AppointmentService(session).cancel(principal, appointment_id, body, now=now)
     return AppointmentOut.model_validate(appointment)
+
+
+@router.post("/{appointment_id}/steps/{event_id}/confirm", status_code=status.HTTP_204_NO_CONTENT)
+def confirm_step(
+    appointment_id: uuid.UUID,
+    event_id: uuid.UUID,
+    principal: Confirmer,
+    session: DbSession,
+    now: Now,
+) -> None:
+    AppointmentService(session).confirm_step(principal, appointment_id, event_id, now=now)

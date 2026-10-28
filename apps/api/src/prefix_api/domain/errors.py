@@ -30,3 +30,7 @@ class ConflictError(DomainError):
 
 class ValidationFailedError(DomainError):
     code = "validation_failed"
+
+
+class RateLimitedError(DomainError):
+    code = "rate_limited"

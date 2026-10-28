@@ -7,6 +7,9 @@ class Role(StrEnum):
     NURSE = "NURSE"
     CLINICIAN = "CLINICIAN"
     VIEWER = "VIEWER"
+    # Guest demo access: sees only the synthetic Demo Hospital and cannot change protocols,
+    # manage users, export data or send real messages.
+    DEMO_VIEWER = "DEMO_VIEWER"
 
 
 class MessageChannel(StrEnum):

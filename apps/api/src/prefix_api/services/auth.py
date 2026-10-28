@@ -128,7 +128,32 @@ class AuthService:
                 purpose="authentication",
             )
 
-    def _issue_pair(self, user: User, *, family_id: uuid.UUID, now: dt.datetime) -> TokenPair:
+    def guest_session(self, user: User, *, now: dt.datetime) -> TokenPair:
+        """A short demo session for a guest user (no password). It ends after
+        ``guest_session_minutes``; the refresh token cannot outlive it."""
+        record_audit(
+            self._session,
+            principal=self._principal(user),
+            action=AuditAction.LOGIN,
+            entity_type="user",
+            entity_id=user.id,
+            purpose="guest_login",
+        )
+        return self._issue_pair(
+            user,
+            family_id=uuid.uuid7(),
+            now=now,
+            refresh_ttl=dt.timedelta(minutes=self._settings.guest_session_minutes),
+        )
+
+    def _issue_pair(
+        self,
+        user: User,
+        *,
+        family_id: uuid.UUID,
+        now: dt.datetime,
+        refresh_ttl: dt.timedelta | None = None,
+    ) -> TokenPair:
         access_token, access_expires_at = issue_access_token(
             self._settings,
             user_id=user.id,
@@ -137,7 +162,8 @@ class AuthService:
             now=now,
         )
         refresh_token = new_opaque_token()
-        refresh_expires_at = now + dt.timedelta(days=self._settings.jwt_refresh_ttl_days)
+        ttl = refresh_ttl or dt.timedelta(days=self._settings.jwt_refresh_ttl_days)
+        refresh_expires_at = now + ttl
         users_repo.add_refresh_token(
             self._session,
             RefreshToken(

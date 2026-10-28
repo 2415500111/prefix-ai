@@ -22,6 +22,7 @@ from prefix_api.db.models import (
     Appointment,
     CheckIn,
     Message,
+    Organization,
     Patient,
     PatientTimelineEvent,
     PrepStep,
@@ -37,6 +38,7 @@ from prefix_api.domain.enums import (
 from prefix_api.domain.principal import SystemPrincipal
 from prefix_api.services.audit import record_audit
 from prefix_api.services.messaging.base import MessagingError, MessagingProvider, OutboundMessage
+from prefix_api.services.messaging.providers import ConsoleProvider
 from prefix_api.services.step_translations import base_language, translate_step
 from prefix_api.services.translation import SOURCE_LANGUAGE, Translator
 
@@ -130,6 +132,7 @@ class ReminderSender:
         appointment = session.get(Appointment, event.appointment_id)
         patient = session.get(Patient, event.patient_id)
         step = session.get(PrepStep, event.step_id)
+        organization = session.get(Organization, event.organization_id)
         if appointment is None or patient is None or step is None:  # pragma: no cover
             return self._finish(event, TimelineEventStatus.FAILED, "Missing records")
 
@@ -191,7 +194,10 @@ class ReminderSender:
             return None
 
         try:
-            result = self._provider.send(OutboundMessage(channel=channel, to=to, body=message.body))
+            # The demo hospital is synthetic: its messages are logged, never sent.
+            is_demo = organization is not None and organization.is_demo
+            provider = ConsoleProvider() if is_demo else self._provider
+            result = provider.send(OutboundMessage(channel=channel, to=to, body=message.body))
         except MessagingError as exc:
             message.status = MessageStatus.FAILED
             message.error = str(exc)[:500]

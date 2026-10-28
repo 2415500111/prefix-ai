@@ -9,12 +9,22 @@ from sqlalchemy.orm import Session
 
 from prefix_api.db.models import (
     Appointment,
+    CheckIn,
+    Patient,
     PatientTimelineEvent,
     PrepProtocol,
     PrepStep,
     User,
 )
-from prefix_api.domain.enums import AppointmentStatus, AuditAction, ProtocolStatus, Role
+from prefix_api.domain.enums import (
+    AppointmentStatus,
+    AuditAction,
+    CheckInResponse,
+    CheckInStatus,
+    ProtocolStatus,
+    Role,
+    TimelineEventStatus,
+)
 from prefix_api.domain.errors import ConflictError, NotFoundError, ValidationFailedError
 from prefix_api.domain.permissions import Permission
 from prefix_api.domain.principal import StaffPrincipal
@@ -28,6 +38,7 @@ from prefix_api.schemas.appointments import (
     AppointmentReschedule,
 )
 from prefix_api.services.audit import record_audit
+from prefix_api.services.check_ins import record_answer
 from prefix_api.services.timeline import build_timeline, cancel_events
 
 ENTITY = "appointment"
@@ -160,6 +171,66 @@ class AppointmentService:
         for appointment in appointments:
             self._audit(principal, AuditAction.LIST, appointment, purpose="appointment_list")
         return appointments
+
+    def confirm_step(
+        self,
+        principal: StaffPrincipal,
+        appointment_id: uuid.UUID,
+        event_id: uuid.UUID,
+        *,
+        now: dt.datetime,
+    ) -> PatientTimelineEvent:
+        """Record that a step was done, on the patient's behalf (for example after a phone call)."""
+        principal.require(Permission.STEP_CONFIRM)
+        appointment = self._load(principal, appointment_id, for_update=True)
+        event = self._session.scalar(
+            select(PatientTimelineEvent)
+            .where(
+                PatientTimelineEvent.id == event_id,
+                PatientTimelineEvent.appointment_id == appointment.id,
+                PatientTimelineEvent.organization_id == principal.organization_id,
+            )
+            .with_for_update()
+        )
+        if event is None or event.status is TimelineEventStatus.CANCELLED:
+            raise NotFoundError("Step not found")
+        step = self._session.get(PrepStep, event.step_id)
+        patient = self._session.get(Patient, appointment.patient_id)
+        if step is None or patient is None:  # pragma: no cover - foreign keys prevent this
+            raise NotFoundError("Step not found")
+        if not step.requires_confirmation:
+            raise ValidationFailedError("This step has nothing to confirm")
+        if event.status is TimelineEventStatus.CONFIRMED:
+            raise ConflictError("This step is already confirmed")
+
+        check_in = self._session.scalar(
+            select(CheckIn).where(CheckIn.timeline_event_id == event.id)
+        )
+        if check_in is None:
+            check_in = CheckIn(
+                organization_id=event.organization_id,
+                appointment_id=event.appointment_id,
+                patient_id=event.patient_id,
+                timeline_event_id=event.id,
+                question=step.title,
+                status=CheckInStatus.PENDING,
+            )
+            self._session.add(check_in)
+            self._session.flush()
+        record_answer(
+            self._session,
+            principal=principal,
+            patient=patient,
+            appointment=appointment,
+            check_in=check_in,
+            event=event,
+            step=step,
+            response=CheckInResponse.YES,
+            via="by staff",
+            purpose="staff_step_confirmation",
+            now=now,
+        )
+        return event
 
     def _choose_protocol(self, principal: StaffPrincipal, data: AppointmentCreate) -> PrepProtocol:
         if data.protocol_id is not None:
