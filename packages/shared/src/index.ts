@@ -205,3 +205,79 @@ export interface DemoPatientLink {
   patient_name: string;
   language: "en" | "hi";
 }
+
+/* Coordinator dashboard (see apps/api/src/prefix_api/schemas/dashboard.py). */
+
+export type Sla = "overdue" | "due_soon" | "on_time";
+
+export interface UpcomingRow {
+  appointment_id: string;
+  patient_id: string;
+  patient_name: string;
+  procedure_name: string;
+  facility_name: string;
+  scheduled_at: string;
+  status: string;
+  readiness: number;
+  required_steps: number;
+  confirmed_steps: number;
+  problem_steps: number;
+  open_escalations: number;
+  open_tasks: number;
+}
+
+export interface DrawerStep {
+  event_id: string;
+  title: string;
+  status: string;
+  due_at: string;
+  requires_confirmation: boolean;
+  is_critical: boolean;
+  response: string | null;
+}
+
+export interface DrawerMessage {
+  id: string;
+  channel: string;
+  direction: "INBOUND" | "OUTBOUND";
+  status: string;
+  body: string;
+  error: string | null;
+  created_at: string;
+}
+
+export interface DrawerEscalation {
+  id: string;
+  severity: EscalationSeverity;
+  status: EscalationStatus;
+  summary: string;
+  created_at: string;
+}
+
+export interface DrawerTask {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  due_at: string | null;
+}
+
+export interface Drawer {
+  appointment: UpcomingRow;
+  steps: DrawerStep[];
+  messages: DrawerMessage[];
+  escalations: DrawerEscalation[];
+  tasks: DrawerTask[];
+}
+
+export interface QueueItem {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  patient_id: string | null;
+  patient_name: string;
+  appointment_id: string | null;
+  due_at: string | null;
+  sla: Sla;
+}

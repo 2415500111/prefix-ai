@@ -11,12 +11,26 @@ export function DemoControls({ isAdmin }: { isAdmin: boolean }) {
   const [result, setResult] = useState<DemoActionResult | null>(null);
 
   function openPatient(lang: "en" | "hi") {
+    // Browsers only allow a new tab while the click is still being handled, so the tab is
+    // opened now and pointed at the patient's link once the server has answered.
+    const tab = window.open("", "_blank");
     startTransition(async () => {
       const outcome = await openDemoPatient(lang);
-      setResult(outcome);
-      if (outcome.ok && outcome.url) {
-        window.open(outcome.url, "_blank", "noopener,noreferrer");
+      if (outcome.ok && outcome.url && tab) {
+        tab.opener = null;
+        tab.location.href = outcome.url;
+        setResult(outcome);
+        return;
       }
+      tab?.close();
+      setResult(
+        outcome.ok
+          ? {
+              ok: false,
+              message: "Allow pop-ups for this site to open the demo patient.",
+            }
+          : outcome,
+      );
     });
   }
 

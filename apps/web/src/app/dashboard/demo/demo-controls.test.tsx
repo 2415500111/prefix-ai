@@ -31,20 +31,25 @@ describe("demo controls", () => {
       url: "http://localhost:3000/p#token=abc",
       message: "Opened a demo patient (Priya Test) in a new tab.",
     });
-    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const tab = {
+      location: { href: "" },
+      opener: undefined as unknown,
+      close: vi.fn(),
+    };
+    const open = vi
+      .spyOn(window, "open")
+      .mockImplementation(() => tab as unknown as Window);
     render(<DemoControls isAdmin={false} />);
 
     fireEvent.click(
       screen.getByRole("button", { name: "View patient demo (Hindi)" }),
     );
 
-    await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
-    expect(openDemoPatient).toHaveBeenCalledWith("hi");
-    expect(open).toHaveBeenCalledWith(
-      "http://localhost:3000/p#token=abc",
-      "_blank",
-      "noopener,noreferrer",
+    await waitFor(() =>
+      expect(tab.location.href).toBe("http://localhost:3000/p#token=abc"),
     );
+    expect(open).toHaveBeenCalledWith("", "_blank");
+    expect(openDemoPatient).toHaveBeenCalledWith("hi");
     open.mockRestore();
   });
 
