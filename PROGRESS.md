@@ -5,7 +5,8 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 ## Resume point
 
 **Status:** Phases 0–5 merged (latest tag `v0.5.0`).
-**Next:** Phase 6 (AI Prep Assistant) on `phase-6-ai-assistant`; write its plan below first.
+Phase 6 (AI Prep Assistant) in progress on `phase-6-ai-assistant`.
+**Next:** plan item 1 (red-flag rules and de-identification).
 
 **Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 
@@ -75,7 +76,28 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
   Patients open a single-use link and get a mobile-first portal in English or Hindi. It shows their procedure (countdown, arrival, map, call, `.ics`), a readiness checklist and a prep timeline. From there they can confirm steps, report problems (critical ones escalate and flag the appointment AT_RISK through the same service as SMS replies) and ask to reschedule. Approved step translations are cached (migration 0005) and pre-translated by a Beat job, so the portal never waits for the LLM.
   Verified: 313 pytest + 45 Vitest + 4 Playwright E2E (phone viewport, axe WCAG 2.2 AA), ruff/mypy strict/ESLint/tsc/Prettier clean, Next.js build OK; CI green (run 40625645861) including the new E2E job, Docker build and compose smoke test.
-- [ ] Phase 6 — AI Prep Assistant
+- [ ] Phase 6 — AI Prep Assistant · branch `phase-6-ai-assistant`
+  **Plan:**
+  1. Deterministic safety layer (`domain/red_flags.py`, `domain/deidentify.py`):
+     - Red-flag rules in English, Hindi and romanised Hindi: chest pain, trouble breathing, severe bleeding, fainting, severe abdominal pain, allergic reaction, stroke signs. Deliberately conservative: no negation handling, so a false positive goes to a nurse rather than a missed emergency.
+     - De-identification of patient text before any LLM call: known patient names, phone numbers, emails, URLs, ID-like numbers (MRN, Aadhaar), PIN codes and dates become placeholders.
+  2. LLM layer (`services/assistant/llm.py`): the only place the assistant calls Claude, with the model from `LLM_MODEL` and structured JSON outputs. Every text passes through the de-identifier here, so no caller can skip it.
+     - Triage classifier: red flag yes/no, plus whether the question is about this patient's prep.
+     - Grounded answer: answer text plus cited step ids, and a flag saying whether the steps cover the question.
+     - Versioned prompt files (`prompts/assistant_triage_v1.md`, `prompts/assistant_answer_v1.md`); the version is stored with every exchange.
+  3. Assistant pipeline (`services/assistant/service.py`, migration 0006 `assistant_exchange`):
+     - Order: rules → LLM triage → retrieval over only this patient's applicable steps (pgvector over the appointment's active timeline steps) → grounded answer → output checks.
+     - Output checks: citations must be a subset of the steps provided, and every number in the answer must appear in the cited steps.
+     - Red flags (from the rules or the LLM) give a fixed, human-written emergency message plus an URGENT escalation and call task. Out-of-protocol questions, failed checks, refusals and an unavailable LLM give a fixed "passed to your care team" message plus an escalation and a nurse task. Escalation never depends on the LLM.
+     - The question and answer are stored encrypted; everything is audited.
+  4. API: `POST /patient/assistant/questions` and `GET /patient/assistant/questions` (the patient's own history). Nurse inbox: `GET /escalations` (open first, by severity), `POST /escalations/{id}/acknowledge`, `POST /escalations/{id}/resolve` (with a note), all needing `escalation:handle`.
+  5. Web:
+     - Portal: an "Ask about your prep" panel showing the answer with cited steps (links into the timeline), or the escalation message, plus history. English and Hindi.
+     - Dashboard: `/dashboard/inbox` (nurse inbox) with severity, patient, the question, and acknowledge/resolve actions.
+  6. Evaluation: `make eval` runs 30+ cases from `apps/api/evals/assistant_cases.toml` (red flags in three languages, in-protocol questions with the expected cited step, out-of-protocol questions, prompt injection, PHI in the question).
+     - The rules layer always runs. The full pipeline runs against the real model when `ANTHROPIC_API_KEY` is set.
+     - The report shows a pass rate per category, and the run exits non-zero on any missed red flag.
+  7. Tests: rules, de-identification (the LLM client receives only redacted text), each pipeline outcome with a fake LLM (red flag, out of protocol, unavailable, ungrounded number, bad citation, refusal), patient isolation, the inbox API and permissions, Vitest for the panels, and Playwright for asking a question and seeing an escalation in the inbox.
 - [ ] Phase 7 — Cancellation Risk Score
 - [ ] Phase 8 — Coordinator Dashboard
 - [ ] Phase 9 — Waitlist Backfill
