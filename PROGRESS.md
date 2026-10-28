@@ -4,9 +4,14 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–5 merged (latest tag `v0.5.0`).
-Phase 6 (AI Prep Assistant) in progress on `phase-6-ai-assistant`.
-**Next:** plan item 1 (red-flag rules and de-identification).
+**Status:** Phases 0–5 merged (latest tag `v0.5.0`). Phase 6 (AI Prep Assistant) is paused on `phase-6-ai-assistant` (WIP, not merged).
+**Done in Phase 6:**
+- Plan item 1: red-flag rules (EN, HI, romanised HI) and de-identification.
+- Plan item 2: LLM client with versioned prompts (`assistant-v1`) and JSON-schema outputs. De-identification happens inside the client.
+- Plan item 3: migration 0006, the pipeline with output checks, and `POST/GET /patient/assistant/questions`.
+- Plan item 4, part: `services/escalations.py` (inbox, acknowledge, resolve), committed as `wip:` and not yet tested or routed.
+**Next:** finish item 4: inbox schemas, `GET /escalations`, `POST /escalations/{id}/acknowledge` and `/resolve`, plus tests. Then item 5 (portal panel and `/dashboard/inbox`), item 6 (`make eval`, 30+ cases), and the remaining item 7 tests, including Playwright.
+**Caveats:** CI has not run on this branch yet. Full pytest was green at 384 before the grounding tests were added.
 
 **Docker verification runs in CI** (`.github/workflows/ci.yml`: `docker compose build`, then `up --wait`, migrations and health checks), because the dev machine has no container runtime. If Docker is installed locally later, run `make up && make migrate && make health` locally too.
 
