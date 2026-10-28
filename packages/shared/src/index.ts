@@ -285,3 +285,25 @@ export interface QueueItem {
   due_at: string | null;
   sla: Sla;
 }
+
+/* Analytics (see apps/api/src/prefix_api/schemas/analytics.py). */
+
+export interface AnalyticsSummary {
+  start: string;
+  end: string;
+  procedures: number;
+  cancelled: number;
+  cancellation_rate: number | null;
+  prep_cancelled: number;
+  prep_share: number | null;
+  checkins_sent: number;
+  checkins_answered: number;
+  response_rate: number | null;
+  or_minutes_at_risk: number;
+  /** A decimal string, to avoid floating-point money. */
+  or_cost_at_risk: string;
+  baseline_rate: number | null;
+  avoided_estimate: number | null;
+  or_minutes_saved_estimate: number | null;
+  or_cost_saved_estimate: string | null;
+}

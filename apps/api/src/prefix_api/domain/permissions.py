@@ -15,6 +15,7 @@ class Permission(StrEnum):
     ESCALATION_HANDLE = "escalation:handle"
     TASK_MANAGE = "task:manage"
     ANALYTICS_READ = "analytics:read"
+    ANALYTICS_EXPORT = "analytics:export"
     AUDIT_READ = "audit:read"
     USER_MANAGE = "user:manage"
     FACILITY_MANAGE = "facility:manage"
@@ -54,6 +55,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             _P.TASK_COMPLETE,
             _P.STEP_CONFIRM,
             _P.ANALYTICS_READ,
+            _P.ANALYTICS_EXPORT,
         }
     ),
     Role.NURSE: frozenset(

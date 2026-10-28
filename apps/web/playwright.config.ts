@@ -26,13 +26,13 @@ export default defineConfig({
     {
       name: "mobile-chrome",
       use: { ...devices["Pixel 7"] },
-      testIgnore: /(coordinator|guest)\.spec\.ts/,
+      testIgnore: /(coordinator|guest|analytics)\.spec\.ts/,
     },
     // Staff screens are desktop-first.
     {
       name: "desktop-chrome",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /(coordinator|guest)\.spec\.ts/,
+      testMatch: /(coordinator|guest|analytics)\.spec\.ts/,
     },
   ],
   webServer: [

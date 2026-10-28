@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–6b and 8 merged (latest tag `v0.8.0`). Phase 7 (risk score, rules v1) complete on `phase-7-risk-score`, merging to `main` as `v0.7.0`.
+**Status:** Phases 0–8 merged (latest tag `v0.7.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 10 (analytics, lite) complete on `phase-10-analytics`, merging to `main` as `v0.10.0`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 10 (analytics and ROI, lite) on `phase-10-analytics`, once Phase 7 is merged.
+**Next:** Phase 9 (waitlist backfill, lite) on `phase-9-waitlist`, once Phase 10 is merged.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -145,7 +145,13 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - The dashboard works out each row's score on request, which costs about eight queries per procedure. Fine for the demo; cache it when the list grows.
   - Scores are stored every 15 minutes per procedure with no retention policy yet (Phase 12).
   - Scores need the worker and beat running. Locally they are not started by default.
-- [ ] Phase 10 — Analytics & ROI · branch `phase-10-analytics`
+- [x] **Phase 10 — Analytics & ROI (lite)** · 2026-10-28 · `v0.10.0` · branch `phase-10-analytics`
+  One analytics page for a date range: cancellation rate, prep-related cancellations (the six reasons a patient could have prevented), check-in response rate, theatre minutes and OR cost at risk, and an optional estimate of avoided cancellations against a cancellation rate the hospital enters from before Prefix AI. A CSV export lists each procedure by id, time, status and reason, with no names; only coordinators and admins may download it, and each download is audited. Slots backfilled is shown as not tracked until the waitlist exists.
+  Verified: 452 pytest (7 new analytics tests), 68 Vitest, 8 Playwright (desktop project for staff screens), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Known issues and scope notes:**
+  - Charts (Recharts), the nightly aggregation job, and a printed PDF are not built. The page prints through the browser.
+  - "OR cost" uses the seeded per-minute OR cost, not billed revenue. The page calls the at-risk figure exposure, not savings, and only estimates savings when a baseline is given.
+  - Dates are UTC. Facility timezones are not applied to range boundaries.
 - [ ] Phase 9 — Waitlist Backfill (lite) · branch `phase-9-waitlist`
 - [ ] Phase 11 — Integrations (lite) · branch `phase-11-integrations`
 - [ ] Phase 12 — Hardening + Release (lite) · branch `phase-12-release`
