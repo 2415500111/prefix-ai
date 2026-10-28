@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–10 merged (latest tag `v0.10.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 11 (integrations, lite) complete on `phase-11-integrations`, merging to `main` as `v0.11.0`.
+**Status:** Phases 0–11 merged (latest tag `v0.11.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 12 (hardening and release, lite) complete on `phase-12-release`, merging to `main` as `v1.0.0`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 12 (release, lite) on `phase-12-release`, once Phase 11 is merged.
+**Next:** nothing in the revised plan. After v1.0.0, the known issues below are the backlog, starting with the retention and erasure job, and the first-admin command.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -171,4 +171,13 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - Consent from a file is recorded with the import time as its timestamp, and the source of the consent is not stored. Check it before importing; Phase 12's COMPLIANCE.md repeats this.
   - Each file is processed synchronously in one request, so the 500-row cap stays. A larger hospital would need a background job.
   - Found and fixed while testing: browsers send form text with CRLF line endings, so the import button never appeared. Both sides now normalise line endings.
-- [ ] Phase 12 — Hardening + Release (lite) · branch `phase-12-release`
+- [x] **Phase 12 — Hardening + Release (lite)** · 2026-10-28 · `v1.0.0` · branch `phase-12-release`
+  Every API response carries security headers: no framing or sniffing, no caching of patient data, a restrictive content policy, and HSTS in production. Every page does too, and its content policy lets the browser talk only to its own origin. Failed sign-ins are limited per account (10 in 15 minutes) and per client address; successful sign-ins never count. The seed no longer logs the admin's e-mail. `docs/COMPLIANCE.md` maps the HIPAA and DPDP duties to the code and states the gaps. `docs/DEPLOYMENT.md` covers what runs, the environment, the steps, backups, key rotation and the limits. The README has a demo walkthrough. All packages are at 1.0.0.
+  Verified: 477 pytest (5 new hardening tests), 7 worker tests, 84 Vitest, 11 Playwright (1 new headers spec, desktop and mobile), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Known issues and scope notes:**
+  - Rate limits are per process. Run one API process; a shared store is the first item for a multi-node deployment.
+  - Retention, erasure, subject-access export and breach-notification workflows are not built (`docs/COMPLIANCE.md`). These must be decided before a real hospital goes live.
+  - No first-admin command for a real hospital. The seed creates demonstration data only, so a real admin is created by hand (`docs/DEPLOYMENT.md`).
+  - The content policy allows inline scripts because Next.js needs them for page data. Nonces are the next step.
+  - The portal can take more than 5 seconds to leave the magic-link page under a full parallel run, so the e2e expect timeout is 15 seconds. Single-worker runs are fast. The exact cause under load is not isolated.
+  - The README walkthrough is text only. Screenshots were not produced.

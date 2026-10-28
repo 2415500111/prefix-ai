@@ -1,6 +1,9 @@
+import hashlib
+
 from fastapi import APIRouter, Request, status
 
 from prefix_api.api.deps import DbSession, Now, SettingsDep, StaffUser
+from prefix_api.core.crypto import normalize_email
 from prefix_api.core.rate_limit import RateLimiter
 from prefix_api.db.models import User
 from prefix_api.domain.errors import AuthenticationError, NotFoundError
@@ -24,6 +27,12 @@ def _out(pair: TokenPair) -> TokenPairOut:
 # Guests may try the demo this many times per client address in each window.
 GUEST_LOGINS_PER_WINDOW = 5
 GUEST_WINDOW_SECONDS = 600.0
+# Password guessing is limited per account and per client address. Only failed attempts count,
+# so ordinary sign-ins never use up the allowance. The account limit is the one that matters;
+# the client limit is a backstop for one address trying many accounts.
+LOGIN_PER_ACCOUNT = 10
+LOGIN_PER_CLIENT = 100
+LOGIN_WINDOW_SECONDS = 900.0
 
 
 @router.get("/capabilities")
@@ -48,8 +57,30 @@ def guest(request: Request, session: DbSession, settings: SettingsDep, now: Now)
 
 
 @router.post("/login")
-def login(body: LoginRequest, session: DbSession, settings: SettingsDep, now: Now) -> TokenPairOut:
-    return _out(AuthService(session, settings).login(body.email, body.password, now=now))
+def login(
+    body: LoginRequest,
+    request: Request,
+    session: DbSession,
+    settings: SettingsDep,
+    now: Now,
+) -> TokenPairOut:
+    limiter: RateLimiter = request.app.state.rate_limiter
+    client_key = f"login-client:{request.client.host if request.client else 'unknown'}"
+    # Keyed by a hash so the limiter never holds an address in plain text.
+    account_key = (
+        f"login-account:{hashlib.sha256(normalize_email(body.email).encode()).hexdigest()}"
+    )
+    limiter.refuse_if_full(client_key, limit=LOGIN_PER_CLIENT, window_seconds=LOGIN_WINDOW_SECONDS)
+    limiter.refuse_if_full(
+        account_key, limit=LOGIN_PER_ACCOUNT, window_seconds=LOGIN_WINDOW_SECONDS
+    )
+    try:
+        pair = AuthService(session, settings).login(body.email, body.password, now=now)
+    except AuthenticationError:
+        limiter.record(client_key)
+        limiter.record(account_key)
+        raise
+    return _out(pair)
 
 
 @router.post("/refresh")

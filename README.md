@@ -154,6 +154,27 @@ This creates a throwaway test hospital with three patients (English, Hindi, and 
 - **Reset:** the demo starts fresh every night (worker, 03:00 India time). The demo admin account, printed by `make seed-demo` the first time, can also press **Reset demo**.
 - **Turn it off:** `ENABLE_GUEST_LOGIN=false`. The sign-in page then hides the button, and `POST /auth/guest` returns 404.
 
+## Demo walkthrough
+
+Start the stack and seed the demo (`make up`, `make migrate`, `make seed-demo`, or the native steps above), then open http://localhost:3000/login.
+
+1. **Sign in as a guest.** Press **Try as Guest**. The banner at the top says the data is made up.
+2. **Overview.** *Next 72 hours* lists upcoming procedures, least ready first, with readiness, risk and open escalations. Open a patient to see the prep steps, what has been confirmed and any problem reported.
+3. **Inbox.** Red-flag and out-of-protocol questions from patients reach a nurse here. Guests can resolve them, since the demo is shared.
+4. **Tasks.** The work the system opened for you, most overdue first. **Log done** closes a task.
+5. **Waitlist.** The demo has one cancelled slot and three patients waiting for that procedure. Each offer names the patient and says why they fit. Coordinators press **Find backfill**, then **Accept** or **Decline**. Guests see the offer but cannot act on it; sign in as the demo admin (its password is printed by `make seed-demo` the first time) to try the actions.
+6. **Import.** Check a CSV of patients. Each bad row is listed with its line and column, and nothing is saved until every row passes. Only coordinators and admins can import.
+7. **Analytics.** Cancellation rate, prep-related cancellations, check-in response and theatre minutes at risk for a chosen date range. The CSV download has no names.
+8. **Patient portal.** `uv run python scripts/e2e_portal_fixture.py` prints single-use links. Open one on a phone to see the prep plan in English or Hindi, confirm a step, report a problem, or add the procedure to a calendar.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): data flow, entities, security model, timeline, portal, integrations.
+- [Compliance](docs/COMPLIANCE.md): how HIPAA and DPDP duties are met, and the gaps.
+- [Deployment](docs/DEPLOYMENT.md): what runs, the environment, the steps, backups, and the known limits.
+- [Integrations](docs/INTEGRATIONS.md): CSV import formats and the FHIR plan.
+- [Risk model](docs/model_report.md): what the cancellation score uses and where it is weak.
+
 ## Configuration
 
 All settings come from environment variables. Each one is documented in [.env.example](.env.example). The API validates them on startup with pydantic-settings and refuses to start if a required value is missing or invalid. For example, `LLM_MODEL` must be set, `JWT_SECRET` must be at least 32 characters, and the placeholder secret is rejected in production.

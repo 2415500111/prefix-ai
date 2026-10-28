@@ -156,7 +156,7 @@ def main() -> None:
     finally:
         engine.dispose()
 
-    logger.info("seed.completed", admin_email=DEMO_ADMIN_EMAIL)
+    logger.info("seed.completed")
     if password is not None:
         # Development only: printed once so the developer can log in.
         print(f"Demo admin: {DEMO_ADMIN_EMAIL} / {password}")  # noqa: T201

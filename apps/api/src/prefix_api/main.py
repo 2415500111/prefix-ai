@@ -16,6 +16,7 @@ from prefix_api.core.middleware import (
     request_context_middleware,
 )
 from prefix_api.core.rate_limit import RateLimiter
+from prefix_api.core.security_headers import security_headers
 from prefix_api.db.session import (
     SessionFactory,
     create_db_engine,
@@ -95,6 +96,7 @@ def create_app(
     # Starlette runs the most recently added middleware first (outermost).
     app.middleware("http")(audit_backstop_middleware)
     app.middleware("http")(request_context_middleware)
+    app.middleware("http")(security_headers(hsts=settings.is_production))
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
