@@ -98,9 +98,11 @@ All LLM calls go through one `LLMClient` wrapper in the API/worker. It applies t
  6. COORDINATOR ACTION
     Dashboard worklist sorted by risk / escalations:
       • call patient, resend instructions, assign nurse, reschedule
-      • release slot ──► Backfill service finds eligible WaitlistEntries
-        (can complete prep in time) ──► sends SlotOffer ──► accept ──►
-        new Procedure ──► back to step 2
+      • release slot ──► "Find backfill" ranks eligible WaitlistEntries
+        (same procedure, date in window, enough notice for the prep) and
+        makes one OPEN BackfillOffer to the best fit ──► accept books a new
+        Appointment into the slot (back to step 2); decline offers the next
+        candidate. Lite: no timed expiry and no message to the patient yet.
       • outcome (completed / cancelled + reason) recorded ──► feeds
         Analytics/ROI and future model training
 ```
@@ -128,7 +130,8 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
 | **CheckIn** | Milestone question, status, YES/NO/HELP/OTHER response, and encrypted free-text reply. |
 | **Message** | Inbound/outbound message on SMS/WhatsApp/email/portal. Encrypted body, plus the encrypted approved original whenever the body is a translation of it. |
 | **RiskScore** | 0–100 score, LOW/MEDIUM/HIGH, readable factors JSON, model version. |
-| **WaitlistEntry** | Patient, procedure type, optional facility, date window, prep already done, priority, status. |
+| **WaitlistEntry** | Patient, procedure type, optional facility, date window, prep already done, priority, status ACTIVE/OFFERED/BOOKED/REMOVED. |
+| **BackfillOffer** | One offer of a released slot to a waitlisted patient: status OPEN/ACCEPTED/DECLINED, the reasons shown when it was made, and the appointment it booked. Partial unique indexes allow one OPEN and one ACCEPTED offer per slot, so a slot cannot be booked twice even under concurrent requests. |
 | **Escalation** | Source (red flag, out of protocol, patient-reported problem, high risk, staff), severity, status, encrypted summary and resolution note, assignee. |
 | **Task** | Coordinator/nurse work item: type, status, assignee, due time, links to appointment, patient or escalation. |
 | **AuditLog** | Append-only (DB trigger rejects UPDATE/DELETE/TRUNCATE). Actor type and id, action, entity, patient id, purpose, IP, user agent, request id, and PHI-free details. No foreign keys, so it outlives the records it describes. |

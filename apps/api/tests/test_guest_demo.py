@@ -95,7 +95,9 @@ def test_a_guest_sees_the_demo_patients(client: TestClient, demo: dict[str, Any]
     response = client.get("/appointments", headers=headers, params={"days": 7})
 
     assert response.status_code == 200
-    assert len(response.json()) == demo["result"].appointments
+    # The demo also holds one released slot, which the list shows as cancelled.
+    booked = [row for row in response.json() if row["status"] != "CANCELLED"]
+    assert len(booked) == demo["result"].appointments
 
 
 def test_a_guest_cannot_reach_another_organisations_patients(

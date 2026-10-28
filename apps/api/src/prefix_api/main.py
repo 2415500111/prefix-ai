@@ -35,6 +35,7 @@ from prefix_api.routers import (
     patients,
     protocols,
     tasks,
+    waitlist,
     webhooks,
 )
 from prefix_api.services.assistant.llm import build_assistant_llm
@@ -114,5 +115,6 @@ def create_app(
     app.include_router(demo.router)
     app.include_router(escalations.router)
     app.include_router(tasks.router)
+    app.include_router(waitlist.router)
     app.include_router(webhooks.router)
     return app

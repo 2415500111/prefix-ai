@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–8 merged (latest tag `v0.7.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 10 (analytics, lite) complete on `phase-10-analytics`, merging to `main` as `v0.10.0`.
+**Status:** Phases 0–8 and 10 merged (latest tag `v0.10.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 9 (waitlist backfill, lite) complete on `phase-9-waitlist`, merging to `main` as `v0.9.0`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 9 (waitlist backfill, lite) on `phase-9-waitlist`, once Phase 10 is merged.
+**Next:** Phase 11 (integrations, lite) on `phase-11-integrations`, once Phase 9 is merged.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -152,6 +152,15 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - Charts (Recharts), the nightly aggregation job, and a printed PDF are not built. The page prints through the browser.
   - "OR cost" uses the seeded per-minute OR cost, not billed revenue. The page calls the at-risk figure exposure, not savings, and only estimates savings when a baseline is given.
   - Dates are UTC. Facility timezones are not applied to range boundaries.
-- [ ] Phase 9 — Waitlist Backfill (lite) · branch `phase-9-waitlist`
+- [x] **Phase 9 — Waitlist Backfill (lite)** · 2026-10-28 · `v0.9.0` · branch `phase-9-waitlist`
+  Coordinators see each released slot (cancelled, still ahead, within seven days) and offer it to one waitlisted patient at a time, the best fit first. A patient fits when they wait for the same procedure, the slot's local date is inside their window, they have enough notice for the prep (the protocol's longest offset), and they have not declined the slot or already booked that procedure. Accepting books the patient into the slot. Viewers can read the page but cannot act.
+  The slot is locked before any offer or booking, and the database allows one OPEN and one ACCEPTED offer per slot, so two staff members cannot double-book. Each night the demo hospital gets a released slot with three patients waiting for it.
+  Verified: 460 pytest (14 new waitlist tests and one demo test), 73 Vitest (5 new), 9 Playwright (1 new, desktop), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Known issues and scope notes:**
+  - Offers never expire. An OPEN offer stays until someone accepts or declines it, so a silent patient holds the slot. Timed expiry belongs with notifications (Phase 12 or later).
+  - No message goes to the patient about an offer; the coordinator phones them. Released slots appear only within seven days.
+  - The prep check uses the protocol's longest offset and ignores step conditions. That is conservative: it can skip a patient who would have been fine.
+  - Analytics still shows backfilled slots as "not tracked", although the waitlist now exists.
+  - Fixed in this phase: the analytics page logged a Next.js "unstable Date.now()" error during prerender. It now renders per request.
 - [ ] Phase 11 — Integrations (lite) · branch `phase-11-integrations`
 - [ ] Phase 12 — Hardening + Release (lite) · branch `phase-12-release`
