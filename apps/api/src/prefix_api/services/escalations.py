@@ -3,9 +3,9 @@
 import datetime as dt
 import uuid
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
-from sqlalchemy import case, select, update
+from sqlalchemy import Row, Select, case, select, update
 from sqlalchemy.orm import Session
 
 from prefix_api.db.models import Appointment, Escalation, Patient, ProcedureType, Task
@@ -34,6 +34,15 @@ _SEVERITY_RANK = case(
 )
 
 
+def _to_item(row: Row[Escalation, Patient, Appointment | None, str | None]) -> InboxItem:
+    """Read the joined columns by position; mypy cannot unpack a Row of this query."""
+    escalation: Escalation = row[0]
+    patient: Patient = row[1]
+    appointment: Appointment | None = row[2]
+    procedure_name: str | None = row[3]
+    return InboxItem(escalation, patient, appointment, procedure_name)
+
+
 @dataclass(frozen=True, slots=True)
 class InboxItem:
     escalation: Escalation
@@ -51,30 +60,58 @@ class EscalationService:
     ) -> list[InboxItem]:
         principal.require(Permission.ESCALATION_HANDLE)
         rows = self._session.execute(
-            select(Escalation, Patient, Appointment, ProcedureType.name)
-            .join(Patient, Patient.id == Escalation.patient_id)
-            .outerjoin(Appointment, Appointment.id == Escalation.appointment_id)
-            .outerjoin(ProcedureType, ProcedureType.id == Appointment.procedure_type_id)
-            .where(
-                Escalation.organization_id == principal.organization_id,
-                Escalation.status.in_(_STATUSES[status]),
-            )
+            self._query(principal.organization_id)
+            .where(Escalation.status.in_(_STATUSES[status]))
             .order_by(_SEVERITY_RANK, Escalation.created_at)
             .limit(limit)
         ).all()
         items = []
-        for escalation, patient, appointment, procedure_name in rows:
+        for row in rows:
+            item = _to_item(row)
             record_audit(
                 self._session,
                 principal=principal,
                 action=AuditAction.LIST,
                 entity_type="escalation",
-                entity_id=escalation.id,
-                patient_id=patient.id,
+                entity_id=item.escalation.id,
+                patient_id=item.patient.id,
                 purpose=PURPOSE,
             )
-            items.append(InboxItem(escalation, patient, appointment, procedure_name))
+            items.append(item)
         return items
+
+    def item(self, principal: StaffPrincipal, escalation_id: uuid.UUID) -> InboxItem:
+        """One escalation in the same shape as the inbox (used after changing it)."""
+        principal.require(Permission.ESCALATION_HANDLE)
+        row = self._session.execute(
+            self._query(principal.organization_id).where(Escalation.id == escalation_id)
+        ).one_or_none()
+        if row is None:
+            raise NotFoundError("Escalation not found")
+        item = _to_item(row)
+        record_audit(
+            self._session,
+            principal=principal,
+            action=AuditAction.READ,
+            entity_type="escalation",
+            entity_id=item.escalation.id,
+            patient_id=item.patient.id,
+            purpose=PURPOSE,
+        )
+        return item
+
+    def _query(
+        self, organization_id: uuid.UUID
+    ) -> Select[Escalation, Patient, Appointment | None, str | None]:
+        # Outer joins: an escalation may have no appointment, so the last two columns can be NULL.
+        query = (
+            select(Escalation, Patient, Appointment, ProcedureType.name)
+            .join(Patient, Patient.id == Escalation.patient_id)
+            .outerjoin(Appointment, Appointment.id == Escalation.appointment_id)
+            .outerjoin(ProcedureType, ProcedureType.id == Appointment.procedure_type_id)
+            .where(Escalation.organization_id == organization_id)
+        )
+        return cast(Select[Escalation, Patient, Appointment | None, str | None], query)
 
     def acknowledge(
         self, principal: StaffPrincipal, escalation_id: uuid.UUID, *, now: dt.datetime
