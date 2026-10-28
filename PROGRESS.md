@@ -4,9 +4,9 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–8 and 10 merged (latest tag `v0.10.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 9 (waitlist backfill, lite) complete on `phase-9-waitlist`, merging to `main` as `v0.9.0`.
+**Status:** Phases 0–10 merged (latest tag `v0.10.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 11 (integrations, lite) complete on `phase-11-integrations`, merging to `main` as `v0.11.0`.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** Phase 11 (integrations, lite) on `phase-11-integrations`, once Phase 9 is merged.
+**Next:** Phase 12 (release, lite) on `phase-12-release`, once Phase 11 is merged.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
@@ -162,5 +162,13 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - The prep check uses the protocol's longest offset and ignores step conditions. That is conservative: it can skip a patient who would have been fine.
   - Analytics still shows backfilled slots as "not tracked", although the waitlist now exists.
   - Fixed in this phase: the analytics page logged a Next.js "unstable Date.now()" error during prerender. It now renders per request.
-- [ ] Phase 11 — Integrations (lite) · branch `phase-11-integrations`
+- [x] **Phase 11 — Integrations (lite)** · 2026-10-28 · `v0.11.0` · branch `phase-11-integrations`
+  CSV import of patients and appointments. A coordinator picks a file, sees every row problem by line and column, and imports only when every row is valid. Each row goes through the same services as a typed entry, so consent, audit, protocol and timeline rules apply. Error messages never repeat cell values. Columns can be mapped, unknown ones are reported, and files are capped at 1 MB and 500 rows. The formats and safety properties are in `docs/INTEGRATIONS.md`.
+  Verified: 472 pytest (12 new import tests), 84 Vitest (11 new), 10 Playwright (1 new, desktop), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Known issues and scope notes:**
+  - FHIR R4 is not built. It is planned after v1.0.0, and `docs/INTEGRATIONS.md` says what it will cover.
+  - Import only creates records. There is no update or merge: a repeated MRN is refused, and existing patients are edited in the app.
+  - Consent from a file is recorded with the import time as its timestamp, and the source of the consent is not stored. Check it before importing; Phase 12's COMPLIANCE.md repeats this.
+  - Each file is processed synchronously in one request, so the 500-row cap stays. A larger hospital would need a background job.
+  - Found and fixed while testing: browsers send form text with CRLF line endings, so the import button never appeared. Both sides now normalise line endings.
 - [ ] Phase 12 — Hardening + Release (lite) · branch `phase-12-release`
