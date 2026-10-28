@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  EscalationItem,
   Me,
   ProcedureType,
   Protocol,
@@ -54,4 +55,24 @@ export function canEditProtocols(role: Role): boolean {
 
 export function canApproveProtocols(role: Role): boolean {
   return EDITORS.has(role);
+}
+
+export type InboxFilter = "open" | "resolved" | "all";
+
+export function listEscalations(
+  status: InboxFilter = "open",
+): Promise<EscalationItem[]> {
+  return guarded(api<EscalationItem[]>(`/escalations?status=${status}`));
+}
+
+const HANDLERS: ReadonlySet<Role> = new Set([
+  "ADMIN",
+  "COORDINATOR",
+  "NURSE",
+  "CLINICIAN",
+]);
+
+/** Mirrors the API's ESCALATION_HANDLE permission; the API remains the authority. */
+export function canHandleEscalations(role: Role): boolean {
+  return HANDLERS.has(role);
 }

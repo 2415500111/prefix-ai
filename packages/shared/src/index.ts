@@ -147,3 +147,48 @@ export interface PatientSession {
   token_type: string;
   expires_at: string;
 }
+
+/* AI Prep Assistant and nurse inbox (see apps/api/src/prefix_api/schemas). */
+
+export type AssistantOutcome =
+  | "ANSWERED"
+  | "RED_FLAG"
+  | "OUT_OF_PROTOCOL"
+  | "NOT_COVERED"
+  | "CHECK_FAILED"
+  | "UNAVAILABLE";
+
+export interface AssistantCitation {
+  event_id: string;
+  title: string;
+}
+
+export interface AssistantReply {
+  id: string;
+  question: string;
+  reply: string;
+  outcome: AssistantOutcome;
+  /** True when the question went to a nurse instead of being answered. */
+  escalated: boolean;
+  citations: AssistantCitation[];
+  created_at: string;
+}
+
+export type EscalationSeverity = "URGENT" | "HIGH" | "NORMAL";
+export type EscalationStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+
+export interface EscalationItem {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  appointment_id: string | null;
+  procedure_name: string | null;
+  source: string;
+  severity: EscalationSeverity;
+  status: EscalationStatus;
+  summary: string;
+  created_at: string;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+}
