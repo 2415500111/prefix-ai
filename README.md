@@ -2,6 +2,26 @@
 
 Prefix AI prevents last-minute cancellations of surgeries, colonoscopies, and imaging scans caused by improper patient preparation. See [CLAUDE.md](CLAUDE.md) for the mission, features, and safety rules, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design.
 
+## Quick start
+
+Run the whole app on your own machine, without Docker. Run these from the repository root. The Windows variants and troubleshooting are in [docs/LOCAL_DEV.md](docs/LOCAL_DEV.md).
+
+```bash
+corepack enable                  # pnpm 12 (Windows without admin: corepack enable --install-directory "$env:APPDATA\npm")
+uv sync                          # Python 3.14 and the API packages (install uv first)
+pnpm install                     # JavaScript packages
+cp .env.example .env             # Windows PowerShell: Copy-Item .env.example .env
+uv run --no-project --python 3.12 --with pgserver python scripts/dev_postgres.py   # PostgreSQL on port 55432
+uv run alembic -c apps/api/alembic.ini upgrade head
+uv run python -m prefix_api.seed_demo                            # demo hospital; prints the demo admin password the first time
+uv run uvicorn prefix_api.main:create_app --factory --port 8000  # terminal 1: the API
+pnpm dev                                                         # terminal 2: the web app, then open http://localhost:3000
+```
+
+**Sign in as a guest:** open http://localhost:3000/login and press **Try as Guest**. No password is needed. The demo admin is `admin@guest-demo-hospital.demo.example.com`, with the password printed by `seed_demo`.
+
+With Docker instead, run `make up`, `make migrate` and `make seed-demo`.
+
 ## Repository layout
 
 ```
@@ -156,16 +176,40 @@ This creates a throwaway test hospital with three patients (English, Hindi, and 
 
 ## Demo walkthrough
 
-Start the stack and seed the demo (`make up`, `make migrate`, `make seed-demo`, or the native steps above), then open http://localhost:3000/login.
+Start the app and seed the demo (see [Quick start](#quick-start), or `make up`, `make migrate`, `make seed-demo` with Docker), then open http://localhost:3000/login. The pictures come from the throwaway test hospital that the end-to-end tests use, so every name in them is made up. They are retaken with `SCREENSHOTS=1 pnpm --filter @prefix/web exec playwright test screenshots`.
 
 1. **Sign in as a guest.** Press **Try as Guest**. The banner at the top says the data is made up.
+
+   ![Login page with Try as Guest](docs/screenshots/01-login-try-as-guest.png)
+
 2. **Overview.** *Next 72 hours* lists upcoming procedures, least ready first, with readiness, risk and open escalations. Open a patient to see the prep steps, what has been confirmed and any problem reported.
-3. **Inbox.** Red-flag and out-of-protocol questions from patients reach a nurse here. Guests can resolve them, since the demo is shared.
-4. **Tasks.** The work the system opened for you, most overdue first. **Log done** closes a task.
-5. **Waitlist.** The demo has one cancelled slot and three patients waiting for that procedure. Each offer names the patient and says why they fit. Coordinators press **Find backfill**, then **Accept** or **Decline**. Guests see the offer but cannot act on it; sign in as the demo admin (its password is printed by `make seed-demo` the first time) to try the actions.
-6. **Import.** Check a CSV of patients. Each bad row is listed with its line and column, and nothing is saved until every row passes. Only coordinators and admins can import.
-7. **Analytics.** Cancellation rate, prep-related cancellations, check-in response and theatre minutes at risk for a chosen date range. The CSV download has no names.
-8. **Patient portal.** `uv run python scripts/e2e_portal_fixture.py` prints single-use links. Open one on a phone to see the prep plan in English or Hindi, confirm a step, report a problem, or add the procedure to a calendar.
+
+   ![Coordinator dashboard](docs/screenshots/02-coordinator-dashboard.png)
+
+   ![Patient drawer with prep steps](docs/screenshots/03-patient-drawer.png)
+
+3. **Protocols.** Clinician-approved prep instructions. Only approved versions are ever sent to patients.
+
+   ![Protocols](docs/screenshots/04-protocols.png)
+
+4. **Analytics.** Cancellation rate, prep-related cancellations, check-in response and theatre minutes at risk for a chosen date range. This picture is taken after one booking was released with a prep-related reason. The CSV download has no names.
+
+   ![Analytics](docs/screenshots/05-analytics.png)
+
+5. **Inbox and tasks.** Red-flag and out-of-protocol questions from patients reach a nurse in the inbox. Guests can resolve them, since the demo is shared. Tasks are the work the system opened for you, most overdue first; **Log done** closes one.
+6. **Waitlist.** The demo has one cancelled slot and three patients waiting for that procedure. Each offer names the patient and says why they fit. Coordinators press **Find backfill**, then **Accept** or **Decline**. Guests see the offer but cannot act on it; sign in as the demo admin to try the actions.
+7. **Import.** Check a CSV of patients before anything is saved. Each bad row is listed with its line and column, and only coordinators and admins can import.
+
+   ![CSV import dry run](docs/screenshots/06-csv-import-dry-run.png)
+
+8. **Patient portal.** The patient sees their prep plan on a phone, in English or Hindi, and can confirm a step, report a problem or add the procedure to a calendar. Each link works once. Get fresh test links with `uv run python scripts/e2e_portal_fixture.py`.
+
+   <img src="docs/screenshots/07-portal-english-mobile.png" alt="Patient portal in English on a phone" width="300"> <img src="docs/screenshots/08-portal-hindi-mobile.png" alt="Patient portal in Hindi on a phone" width="300">
+
+9. **AI assistant.** The patient asks about their own prep. With no Anthropic key set, a question the plan cannot answer goes to a nurse, as in this picture. With a key, the assistant answers only from the patient's own plan.
+
+   <img src="docs/screenshots/09-assistant-chat-mobile.png" alt="AI assistant on a phone" width="300">
+
 
 ## Documentation
 
