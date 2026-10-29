@@ -4,9 +4,18 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Phases 0–11 merged (latest tag `v0.11.0`; 6b is `v0.6.1`, 8 is `v0.8.0`). Phase 12 (hardening and release, lite) complete on `phase-12-release`, merging to `main` as `v1.0.0`.
+**Status:** Released. Version 1.0.0 shipped on 2026-10-28 (tag `v1.0.0`), with the polish release v1.0.1 on 2026-10-29 (local development guide, `corepack enable` setup, README quick start and screenshots). All phases 0–12 are merged.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
-**Next:** nothing in the revised plan. After v1.0.0, the known issues below are the backlog, starting with the retention and erasure job, and the first-admin command.
+**Known gaps before a real hospital goes live** (details in [docs/COMPLIANCE.md](docs/COMPLIANCE.md)): no retention schedule or erasure job; no subject-access export; no breach-notification workflow; no first-admin command for a real hospital (the seed creates demonstration data only); vendor agreements (Twilio, SMTP, Anthropic) are the hospital's to sign.
+
+**Known limits in the release:** rate limits live in one API process; the content policy allows inline scripts (Next.js page data); the patient portal's first load can exceed 5 seconds under a full parallel test run; PII key rotation has no re-encryption job; analytics does not yet count backfilled slots.
+
+**Future work, in rough order:**
+1. A first-admin bootstrap command, and the retention and erasure job, both needed before go-live.
+2. A shared rate-limit store (Redis) before running more than one API process.
+3. FHIR R4 read and write for `Patient`, `Appointment`, `ServiceRequest`, `Procedure` and `MedicationStatement` (see [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)).
+4. Background processing for large CSV imports, and a re-encryption job for PII keys.
+5. Nonce-based content policy, and a subject-access export.
 
 **Revised order** (decided with the owner; numbers stay the same, the sequence changes):
 1. Phase 6 — AI Prep Assistant (finish)
