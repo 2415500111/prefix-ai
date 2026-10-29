@@ -2,7 +2,12 @@
 
 from prefix_api.db.models.assistant import AssistantExchange
 from prefix_api.db.models.audit import AuditLog
-from prefix_api.db.models.engagement import CheckIn, Message, PatientTimelineEvent
+from prefix_api.db.models.engagement import (
+    CheckIn,
+    Message,
+    PatientNotificationRead,
+    PatientTimelineEvent,
+)
 from prefix_api.db.models.operations import (
     BackfillOffer,
     Escalation,
@@ -28,6 +33,7 @@ __all__ = [
     "Organization",
     "Patient",
     "PatientMagicLink",
+    "PatientNotificationRead",
     "PatientTimelineEvent",
     "PrepProtocol",
     "PrepStep",

@@ -114,3 +114,4 @@ class PatientSelfOut(BaseModel):
     preferred_language: str
     preferred_channel: MessageChannel
     consent_to_message: bool
+    hospital_name: str

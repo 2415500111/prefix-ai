@@ -133,7 +133,18 @@ Mobile-first, like an iOS app, with the same tokens and motion. Body text is 17p
 | Reschedule request | "We received your request" → "Approved: your new time is …" or "We could not move your procedure, please call us" | Normal; approved or declined is urgent |
 | Appointment changed | "Your procedure moved to Sat 2 Nov, 9:00" or "Your procedure was cancelled" | Urgent |
 
-**How it is built.** The feed is derived when it is read, from records that already exist: the prep timeline, staff messages, reschedule tasks and the appointment's audited changes. Nothing new runs in the reminder or booking code, so business logic is unchanged. The one new table, `patient_notification_read`, stores which items a patient has read. Each item has a stable key, such as `step-due:<event id>` or `reschedule:<task id>:approved`.
+**How it is built.** The feed is derived when it is read, from records that already exist: the prep timeline, staff messages, reschedule tasks and the appointment's audited changes. Nothing new runs in the reminder or booking code, so business logic is unchanged. The one new table, `patient_notification_read`, stores which items a patient has read. Each item has a stable key:
+
+| Kind (`kind`) | Key |
+|---|---|
+| `step_now` | `step-due:<timeline event id>` (a step the patient has done counts as read) |
+| `step_soon` | `step-soon:<timeline event id>` |
+| `care_team_message` | `message:<message id>` |
+| `reschedule_request` | `reschedule:<task id>:<pending, approved or declined>`, so each answer is a new unread item |
+| `appointment_moved` | `moved:<audit row id>`, the latest move by staff; a move made by approving a request is not shown twice |
+| `appointment_cancelled` | `cancelled:<appointment id>` |
+
+Changes, answers and messages are shown for 14 days.
 
 **Endpoints** (patient session only, scoped to the patient):
 
