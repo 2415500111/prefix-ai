@@ -63,6 +63,7 @@ def _drawer(drawer: Drawer) -> DrawerOut:
                 requires_confirmation=step.requires_confirmation,
                 is_critical=step.is_critical,
                 response=step.response,
+                confirmed_at=step.event.confirmed_at,
             )
             for step in drawer.steps
         ],
@@ -78,7 +79,15 @@ def _drawer(drawer: Drawer) -> DrawerOut:
             for e in drawer.escalations
         ],
         tasks=[
-            DrawerTaskOut(id=t.id, type=t.type, title=t.title, status=t.status, due_at=t.due_at)
+            DrawerTaskOut(
+                id=t.id,
+                type=t.type,
+                title=t.title,
+                status=t.status,
+                due_at=t.due_at,
+                created_at=t.created_at,
+                completed_at=t.completed_at,
+            )
             for t in drawer.tasks
         ],
     )

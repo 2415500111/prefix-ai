@@ -16,7 +16,10 @@ from prefix_api.schemas.appointments import (
     AppointmentReschedule,
     TimelineEventOut,
 )
+from prefix_api.schemas.operations import TaskOut
+from prefix_api.schemas.requests import StaffMessageIn, StaffMessageOut
 from prefix_api.services.appointments import AppointmentService, TimelineEntry
+from prefix_api.services.patient_contact import PatientContactService
 
 router = APIRouter(
     prefix="/appointments", tags=["appointments"], dependencies=[Depends(patient_data_route)]
@@ -25,6 +28,8 @@ router = APIRouter(
 Reader = Annotated[StaffPrincipal, Depends(require(Permission.APPOINTMENT_READ))]
 Writer = Annotated[StaffPrincipal, Depends(require(Permission.APPOINTMENT_WRITE))]
 Confirmer = Annotated[StaffPrincipal, Depends(require(Permission.STEP_CONFIRM))]
+Completer = Annotated[StaffPrincipal, Depends(require(Permission.TASK_COMPLETE))]
+Messenger = Annotated[StaffPrincipal, Depends(require(Permission.MESSAGE_SEND))]
 
 
 def _detail(appointment: Appointment, timeline: list[TimelineEntry]) -> AppointmentDetailOut:
@@ -115,3 +120,27 @@ def confirm_step(
     now: Now,
 ) -> None:
     AppointmentService(session).confirm_step(principal, appointment_id, event_id, now=now)
+
+
+@router.post("/{appointment_id}/calls", status_code=status.HTTP_201_CREATED)
+def log_call(
+    appointment_id: uuid.UUID, principal: Completer, session: DbSession, now: Now
+) -> TaskOut:
+    """Record that someone spoke to the patient; closes the open "call the patient" tasks."""
+    task = PatientContactService(session).log_call(principal, appointment_id, now=now)
+    return TaskOut.model_validate(task)
+
+
+@router.post("/{appointment_id}/messages", status_code=status.HTTP_201_CREATED)
+def message_patient(
+    appointment_id: uuid.UUID,
+    body: StaffMessageIn,
+    principal: Messenger,
+    session: DbSession,
+    now: Now,
+) -> StaffMessageOut:
+    """A short message from the care team, shown in the patient's portal under Updates."""
+    message = PatientContactService(session).message_patient(
+        principal, appointment_id, body.body, now=now
+    )
+    return StaffMessageOut(id=message.id, created_at=message.created_at)
