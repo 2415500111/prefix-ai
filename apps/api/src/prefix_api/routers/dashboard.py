@@ -64,6 +64,7 @@ def _drawer(drawer: Drawer) -> DrawerOut:
                 is_critical=step.is_critical,
                 response=step.response,
                 confirmed_at=step.event.confirmed_at,
+                category=step.category,
             )
             for step in drawer.steps
         ],

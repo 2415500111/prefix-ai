@@ -1,6 +1,7 @@
 import type { ReleasedSlot } from "@prefix/shared";
+import { CalendarX, Sparkles } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/action-runner";
 
 import { acceptOffer, declineOffer, findBackfill } from "./actions";
 
@@ -23,20 +24,25 @@ export function ReleasedSlotCard({
 }) {
   const offer = slot.open_offer;
   return (
-    <article className="rounded-lg border p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-medium">{slot.procedure_name}</h3>
-        <time
-          dateTime={slot.scheduled_at}
-          className="text-sm text-muted-foreground"
-        >
-          {TIME.format(new Date(slot.scheduled_at))}
-        </time>
+    <article className="flex flex-col gap-3 rounded-2xl border bg-card p-5 shadow-card">
+      <div className="flex items-start gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-attention-soft text-attention-foreground">
+          <CalendarX className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold">{slot.procedure_name}</h3>
+          <p className="text-sm text-muted-foreground">
+            <time dateTime={slot.scheduled_at}>
+              {TIME.format(new Date(slot.scheduled_at))}
+            </time>
+            {" · "}
+            {slot.facility_name}
+          </p>
+        </div>
       </div>
-      <p className="text-sm text-muted-foreground">{slot.facility_name}</p>
 
       {offer ? (
-        <div className="mt-3 rounded-md bg-muted p-3 text-sm">
+        <div className="rounded-xl bg-primary-soft/50 p-4 text-sm">
           <p>
             Offered to <strong>{offer.patient_name}</strong>. Waiting for a
             reply.
@@ -48,30 +54,41 @@ export function ReleasedSlotCard({
           </ul>
           {canManage ? (
             <div className="mt-3 flex gap-2">
-              <form action={acceptOffer.bind(null, offer.id)}>
-                <Button type="submit" size="sm">
-                  Accept
-                </Button>
-              </form>
-              <form action={declineOffer.bind(null, offer.id)}>
-                <Button type="submit" variant="outline" size="sm">
-                  Decline
-                </Button>
-              </form>
+              <ActionButton
+                size="sm"
+                action={acceptOffer.bind(null, offer.id)}
+                confirm={{
+                  title: `Book ${offer.patient_name} into this slot?`,
+                  description:
+                    "Their prep plan starts now, built from the approved protocol.",
+                  confirmLabel: "Book",
+                }}
+              >
+                Accept
+              </ActionButton>
+              <ActionButton
+                size="sm"
+                variant="outline"
+                action={declineOffer.bind(null, offer.id)}
+              >
+                Decline
+              </ActionButton>
             </div>
           ) : null}
         </div>
       ) : canManage ? (
-        <form
-          className="mt-3"
-          action={findBackfill.bind(null, slot.appointment_id)}
-        >
-          <Button type="submit" variant="outline" size="sm">
+        <div>
+          <ActionButton
+            variant="soft"
+            size="sm"
+            action={findBackfill.bind(null, slot.appointment_id)}
+          >
+            <Sparkles aria-hidden />
             Find backfill
-          </Button>
-        </form>
+          </ActionButton>
+        </div>
       ) : (
-        <p className="mt-3 text-sm text-muted-foreground">No offer made yet.</p>
+        <p className="text-sm text-muted-foreground">No offer made yet.</p>
       )}
     </article>
   );

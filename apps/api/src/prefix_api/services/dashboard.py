@@ -29,6 +29,7 @@ from prefix_api.domain.enums import (
     AuditAction,
     CheckInResponse,
     EscalationStatus,
+    StepCategory,
     TaskStatus,
     TimelineEventStatus,
 )
@@ -76,6 +77,7 @@ class DrawerStep:
     requires_confirmation: bool
     is_critical: bool
     response: CheckInResponse | None
+    category: StepCategory
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +203,7 @@ class DashboardService:
                 requires_confirmation=step.requires_confirmation,
                 is_critical=step.is_critical,
                 response=response,
+                category=step.category,
             )
             for event, step, response in step_rows
         ]

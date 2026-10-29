@@ -1,112 +1,137 @@
 import type { EscalationItem, EscalationSeverity } from "@prefix/shared";
+import { ShieldAlert } from "lucide-react";
 
+import { ActionButton, ActionForm } from "@/components/action-runner";
+import { StaggerItem } from "@/components/ui/animated";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
 import { acknowledgeEscalation, resolveEscalation } from "./actions";
 
 /** Words as well as colour: a severity is never shown by colour alone. */
-const SEVERITY_LABEL: Record<EscalationSeverity, string> = {
-  URGENT: "Urgent",
-  HIGH: "High",
-  NORMAL: "Normal",
+const SEVERITY: Record<
+  EscalationSeverity,
+  { label: string; tone: "urgent" | "attention" | "neutral" }
+> = {
+  URGENT: { label: "Urgent", tone: "urgent" },
+  HIGH: { label: "High", tone: "attention" },
+  NORMAL: { label: "Normal", tone: "neutral" },
 };
 
-const SEVERITY_CLASS: Record<EscalationSeverity, string> = {
-  URGENT: "bg-red-100 text-red-900 border-red-800",
-  HIGH: "bg-amber-100 text-amber-950 border-amber-800",
-  NORMAL: "bg-muted text-foreground border-border",
-};
-
-function when(iso: string): string {
-  return new Date(iso).toLocaleString("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
+const WHEN = new Intl.DateTimeFormat("en-IN", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Asia/Kolkata",
+});
 
 export function InboxList({ items }: { items: EscalationItem[] }) {
   if (items.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Nothing needs a person right now.
-      </p>
+      <div className="rounded-2xl border border-dashed bg-card px-6 py-12 text-center">
+        <p className="font-medium">Nothing needs a person right now.</p>
+        <p className="text-sm text-muted-foreground">
+          Red flags and questions the prep plan cannot answer arrive here.
+        </p>
+      </div>
     );
   }
 
   return (
-    <ul className="flex flex-col gap-4">
-      {items.map((item) => (
-        <li key={item.id}>
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full border px-2.5 py-0.5 text-sm font-medium ${SEVERITY_CLASS[item.severity]}`}
-                >
-                  {SEVERITY_LABEL[item.severity]}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {item.status === "OPEN"
-                    ? "Waiting"
+    <ul className="flex flex-col gap-3">
+      {items.map((item, index) => {
+        const severity = SEVERITY[item.severity];
+        return (
+          <StaggerItem
+            key={item.id}
+            index={index}
+            className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-card"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <ShieldAlert
+                className={
+                  item.severity === "NORMAL"
+                    ? "size-4 text-muted-foreground"
+                    : "size-4 text-urgent"
+                }
+                aria-hidden
+              />
+              <Badge variant={severity.tone}>{severity.label}</Badge>
+              <Badge
+                variant={
+                  item.status === "RESOLVED"
+                    ? "ready"
                     : item.status === "ACKNOWLEDGED"
-                      ? "In hand"
-                      : "Resolved"}
+                      ? "info"
+                      : "neutral"
+                }
+              >
+                {item.status === "OPEN"
+                  ? "Waiting"
+                  : item.status === "ACKNOWLEDGED"
+                    ? "In hand"
+                    : "Resolved"}
+              </Badge>
+              <time
+                dateTime={item.created_at}
+                className="ml-auto text-xs text-muted-foreground"
+              >
+                {WHEN.format(new Date(item.created_at))}
+              </time>
+            </div>
+            <h2 className="text-lg font-semibold tracking-tight">
+              {item.patient_name}
+              {item.procedure_name ? " " : null}
+              {item.procedure_name ? (
+                <span className="font-normal text-muted-foreground">
+                  · {item.procedure_name}
                 </span>
-              </div>
-              <CardTitle className="text-lg">
-                {item.patient_name}
-                {item.procedure_name ? ` · ${item.procedure_name}` : ""}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                <time dateTime={item.created_at}>{when(item.created_at)}</time>
-              </p>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <p className="text-sm whitespace-pre-line">{item.summary}</p>
+              ) : null}
+            </h2>
+            <p className="text-sm whitespace-pre-line">{item.summary}</p>
 
-              {item.status !== "RESOLVED" ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                  {item.status === "OPEN" ? (
-                    <form action={acknowledgeEscalation.bind(null, item.id)}>
-                      <Button type="submit" variant="outline">
-                        I have this
-                      </Button>
-                    </form>
-                  ) : null}
-                  <form
-                    action={resolveEscalation.bind(null, item.id)}
-                    className="flex flex-1 flex-col gap-2"
+            {item.status !== "RESOLVED" ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                {item.status === "OPEN" ? (
+                  <ActionButton
+                    variant="outline"
+                    action={acknowledgeEscalation.bind(null, item.id)}
                   >
-                    <label
-                      htmlFor={`note-${item.id}`}
-                      className="text-sm font-medium"
-                    >
-                      What did you do?
-                    </label>
-                    <Textarea
-                      id={`note-${item.id}`}
-                      name="note"
-                      required
-                      maxLength={1000}
-                      rows={2}
-                    />
-                    <div>
-                      <Button type="submit">Mark resolved</Button>
-                    </div>
-                  </form>
-                </div>
-              ) : (
-                <p className="text-sm">
-                  <span className="font-medium">Resolution: </span>
-                  {item.resolution_note}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </li>
-      ))}
+                    I have this
+                  </ActionButton>
+                ) : null}
+                <ActionForm
+                  action={resolveEscalation.bind(null, item.id)}
+                  className="flex flex-1 flex-col gap-2"
+                  label={`Resolve the escalation for ${item.patient_name}`}
+                >
+                  <label
+                    htmlFor={`note-${item.id}`}
+                    className="text-sm font-medium"
+                  >
+                    What did you do?
+                  </label>
+                  <Textarea
+                    id={`note-${item.id}`}
+                    name="note"
+                    required
+                    maxLength={1000}
+                    rows={2}
+                  />
+                  <div>
+                    <Button type="submit">Mark resolved</Button>
+                  </div>
+                </ActionForm>
+              </div>
+            ) : (
+              <p className="text-sm">
+                <span className="font-medium">Resolution: </span>
+                {item.resolution_note}
+              </p>
+            )}
+          </StaggerItem>
+        );
+      })}
     </ul>
   );
 }

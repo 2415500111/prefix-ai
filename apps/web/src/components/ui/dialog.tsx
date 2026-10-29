@@ -52,7 +52,7 @@ export function Dialog({
             />
             <BaseDialog.Popup
               className={cn(
-                "shadow-overlay fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-2xl border bg-card p-6 text-foreground outline-none",
+                "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-2xl border bg-card p-6 text-foreground shadow-overlay outline-none",
                 className,
               )}
               render={

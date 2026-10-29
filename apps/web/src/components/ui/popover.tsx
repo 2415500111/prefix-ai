@@ -36,7 +36,7 @@ export function Popover({
             >
               <BasePopover.Popup
                 className={cn(
-                  "glass shadow-raised w-80 max-w-[calc(100vw-1.5rem)] origin-(--transform-origin) rounded-2xl border p-2 text-foreground outline-none",
+                  "w-80 max-w-[calc(100vw-1.5rem)] origin-(--transform-origin) rounded-2xl border glass p-2 text-foreground shadow-raised outline-none",
                   className,
                 )}
                 render={

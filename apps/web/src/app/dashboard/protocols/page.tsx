@@ -19,6 +19,7 @@ import {
 } from "@/lib/server/dal";
 
 import { SampleBadge, StatusBadge } from "./status-badge";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Protocols" };
 
@@ -85,10 +86,12 @@ async function ProtocolTable() {
 
 export default function ProtocolsPage() {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Protocols</h1>
+          <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+            Protocols
+          </h1>
           <p className="text-sm text-muted-foreground">
             Clinician-approved prep instructions. Only approved versions are
             ever sent to patients.
@@ -98,9 +101,7 @@ export default function ProtocolsPage() {
           <NewProtocolButton />
         </Suspense>
       </div>
-      <Suspense
-        fallback={<p className="text-sm text-muted-foreground">Loading…</p>}
-      >
+      <Suspense fallback={<SkeletonList label="Loading" rows={3} />}>
         <ProtocolTable />
       </Suspense>
     </main>

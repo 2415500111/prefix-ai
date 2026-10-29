@@ -106,7 +106,7 @@ function ToastCard({ item }: { item: ToastItem }) {
         if (info.offset.y < -24 || info.velocity.y < -400)
           dismissToast(item.id);
       }}
-      className="glass shadow-raised pointer-events-auto flex w-full items-start gap-3 rounded-2xl border px-4 py-3"
+      className="pointer-events-auto flex w-full items-start gap-3 rounded-2xl border glass px-4 py-3 shadow-raised"
     >
       <Icon
         className={`mt-0.5 size-5 shrink-0 ${ICON_CLASS[item.tone]}`}
@@ -121,7 +121,7 @@ function ToastCard({ item }: { item: ToastItem }) {
       <button
         type="button"
         onClick={() => dismissToast(item.id)}
-        className="pressable -mr-1 rounded-full p-1 text-muted-foreground hover:bg-muted"
+        className="-mr-1 pressable rounded-full p-1 text-muted-foreground hover:bg-muted"
         aria-label="Dismiss"
       >
         <X className="size-4" aria-hidden />

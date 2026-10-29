@@ -38,7 +38,7 @@ export function SegmentedControl({
               aria-current={active ? "page" : undefined}
               scroll={false}
               className={cn(
-                "pressable relative flex h-8 items-center gap-1.5 rounded-[10px] px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                "relative flex h-8 pressable items-center gap-1.5 rounded-[10px] px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
                 active
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground",

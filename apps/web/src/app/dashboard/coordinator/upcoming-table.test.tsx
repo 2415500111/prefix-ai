@@ -49,7 +49,7 @@ describe("upcoming table", () => {
     render(<UpcomingTable rows={[]} filter="attention" />);
 
     expect(
-      screen.getByText("Nobody needs attention right now."),
+      screen.getByText("Nothing needs attention right now."),
     ).toBeInTheDocument();
   });
 
@@ -80,5 +80,40 @@ describe("upcoming table", () => {
 
     expect(screen.getByText("2 escalations")).toBeInTheDocument();
     expect(screen.getByText("1 task")).toBeInTheDocument();
+  });
+
+  it("shows risk as a coloured pill with words, the score and the top reasons", () => {
+    render(
+      <UpcomingTable
+        rows={[
+          row({
+            risk_level: "HIGH",
+            risk_score: 72,
+            risk_reasons: ["Escort not confirmed", "Missed reminders", "Third"],
+          }),
+        ]}
+        filter="all"
+      />,
+    );
+
+    expect(screen.getByText("High risk")).toBeInTheDocument();
+    expect(screen.getByText("72")).toBeInTheDocument();
+    expect(
+      screen.getByText("Escort not confirmed · Missed reminders"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Third/)).not.toBeInTheDocument();
+  });
+});
+
+describe("high risk filter", () => {
+  it("keeps only the rows the risk score calls high", () => {
+    const rows = [
+      row({ patient_name: "Calm", risk_level: "LOW" }),
+      row({ patient_name: "Worrying", risk_level: "HIGH" }),
+    ];
+
+    expect(filterRows(rows, "high").map((r) => r.patient_name)).toEqual([
+      "Worrying",
+    ]);
   });
 });

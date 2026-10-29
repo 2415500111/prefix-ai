@@ -15,6 +15,7 @@ import { describeCondition, formatOffset } from "@/lib/protocol-form";
 import { approveProtocol } from "../actions";
 import { ApprovePanel } from "../approve-panel";
 import { SampleBadge, StatusBadge } from "../status-badge";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Protocol" };
 
@@ -41,7 +42,7 @@ async function ProtocolDetail({ params }: { params: Promise<{ id: string }> }) {
             Version {protocol.version}
           </span>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
           {protocol.name}
         </h1>
         {protocol.description ? (
@@ -117,16 +118,14 @@ export default function ProtocolPage({
   params,
 }: PageProps<"/dashboard/protocols/[id]">) {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <Link
         href="/dashboard/protocols"
         className="text-sm text-muted-foreground hover:underline"
       >
         ← All protocols
       </Link>
-      <Suspense
-        fallback={<p className="text-sm text-muted-foreground">Loading…</p>}
-      >
+      <Suspense fallback={<SkeletonList label="Loading" rows={3} />}>
         <ProtocolDetail params={params} />
       </Suspense>
     </main>

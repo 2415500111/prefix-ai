@@ -7,8 +7,9 @@ export const SLA_LABEL: Record<Sla, string> = {
   on_time: "On time",
 };
 
-export const SLA_CLASS: Record<Sla, string> = {
-  overdue: "bg-red-100 text-red-900 border-red-800",
-  due_soon: "bg-amber-100 text-amber-950 border-amber-800",
-  on_time: "bg-muted text-foreground border-border",
+/** The status colour for each SLA state (docs/DESIGN.md). */
+export const SLA_TONE: Record<Sla, "urgent" | "attention" | "neutral"> = {
+  overdue: "urgent",
+  due_soon: "attention",
+  on_time: "neutral",
 };

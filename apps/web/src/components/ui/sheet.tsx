@@ -76,7 +76,7 @@ export function Sheet({
             />
             <BaseDialog.Popup
               className={cn(
-                "shadow-overlay fixed z-50 flex flex-col overflow-hidden bg-card text-foreground outline-none",
+                "fixed z-50 flex flex-col overflow-hidden bg-card text-foreground shadow-overlay outline-none",
                 PLACEMENT[resolved],
                 className,
               )}
@@ -107,7 +107,7 @@ export function Sheet({
               }
             >
               <header
-                className="glass sticky top-0 z-10 flex shrink-0 flex-col border-b px-5 pt-3 pb-3"
+                className="sticky top-0 z-10 flex shrink-0 flex-col border-b glass px-5 pt-3 pb-3"
                 onPointerDown={
                   draggable ? (event) => controls.start(event) : undefined
                 }
@@ -148,7 +148,7 @@ export function Sheet({
                 {children}
               </div>
               {footer ? (
-                <footer className="glass shrink-0 border-t px-5 py-3">
+                <footer className="shrink-0 border-t glass px-5 py-3">
                   {footer}
                 </footer>
               ) : null}

@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   AnalyticsSummary,
+  Badges,
   Drawer,
   EscalationItem,
   Me,
@@ -11,11 +12,13 @@ import type {
   ProtocolSummary,
   QueueItem,
   ReleasedSlot,
+  RescheduleRequest,
   Role,
   UpcomingRow,
   WaitlistEntry,
 } from "@prefix/shared";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 
 import { api, ApiError } from "./api";
 
@@ -31,9 +34,10 @@ async function guarded<T>(request: Promise<T>): Promise<T> {
   }
 }
 
-export function getCurrentUser(): Promise<Me> {
-  return guarded(api<Me>("/auth/me"));
-}
+/** Cached for the request, since the shell and the page both need it. */
+export const getCurrentUser = cache((): Promise<Me> =>
+  guarded(api<Me>("/auth/me")),
+);
 
 export function listProtocols(): Promise<ProtocolSummary[]> {
   return guarded(api<ProtocolSummary[]>("/protocols"));
@@ -145,4 +149,41 @@ export function canManageWaitlist(role: Role): boolean {
 /** Mirrors the API's PATIENT_WRITE and APPOINTMENT_WRITE permissions for CSV imports. */
 export function canImportRecords(role: Role): boolean {
   return WAITLIST_MANAGERS.has(role);
+}
+
+const NO_BADGES: Badges = {
+  open_tasks: 0,
+  open_escalations: 0,
+  pending_requests: 0,
+};
+
+/** Sidebar counts. Roles that cannot see appointments get zeros rather than an error. */
+export const getBadges = cache(async (): Promise<Badges> => {
+  try {
+    return await guarded(api<Badges>("/dashboard/badges"));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 403) return NO_BADGES;
+    throw error;
+  }
+});
+
+/** Reschedule requests: pending first, then those answered in the last week. */
+export function listRequests(): Promise<RescheduleRequest[]> {
+  return guarded(api<RescheduleRequest[]>("/requests"));
+}
+
+/** Mirrors the API's APPOINTMENT_WRITE permission for answering reschedule requests. */
+export function canAnswerRequests(role: Role): boolean {
+  return WAITLIST_MANAGERS.has(role);
+}
+
+const MESSENGERS: ReadonlySet<Role> = new Set([
+  "ADMIN",
+  "COORDINATOR",
+  "NURSE",
+]);
+
+/** Mirrors the API's MESSAGE_SEND permission. */
+export function canMessagePatients(role: Role): boolean {
+  return MESSENGERS.has(role);
 }

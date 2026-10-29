@@ -12,6 +12,7 @@ from prefix_api.domain.enums import (
     MessageDirection,
     MessageStatus,
     RiskLevel,
+    StepCategory,
     TaskStatus,
     TaskType,
     TimelineEventStatus,
@@ -47,6 +48,7 @@ class DrawerStepOut(BaseModel):
     is_critical: bool
     response: CheckInResponse | None
     confirmed_at: dt.datetime | None = None
+    category: StepCategory | None = None
 
 
 class DrawerMessageOut(BaseModel):

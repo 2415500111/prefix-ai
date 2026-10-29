@@ -1,17 +1,51 @@
 "use client";
 
 import type { ImportKind } from "@prefix/shared";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/toast";
 
 import { runImport } from "./actions";
-import { canCommit, NO_IMPORT, normalizeNewlines } from "./import-state";
+import {
+  canCommit,
+  type ImportState,
+  NO_IMPORT,
+  normalizeNewlines,
+} from "./import-state";
 import { ImportReportView } from "./import-report";
 
 const SELECT_CLASS =
-  "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-10 w-full rounded-lg border border-input bg-card px-3 text-[15px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
+
+/** The toast for a check or an import; the full report stays on the page. */
+function announce(state: ImportState): void {
+  if (state.error) {
+    toast.error(state.error);
+    return;
+  }
+  const report = state.report;
+  if (!report) return;
+  if (report.committed) {
+    const noun =
+      report.imported === 1 ? report.kind.replace(/s$/, "") : report.kind;
+    toast.success("Import saved", {
+      description: `${report.imported} ${noun} added.`,
+    });
+  } else if (report.errors.length > 0) {
+    toast.error(
+      `${report.rows - report.valid_rows} of ${report.rows} rows need fixing`,
+      {
+        description: "Nothing was saved.",
+      },
+    );
+  } else {
+    toast.info("The file is ready to import", {
+      description: `${report.rows} ${report.kind} checked. Nothing saved yet.`,
+    });
+  }
+}
 
 /**
  * Pick a CSV, check it, then import it. The file is read in the browser and sent as text, so
@@ -23,6 +57,10 @@ export function ImportForm() {
   const [fileName, setFileName] = useState("");
   const [state, action, pending] = useActionState(runImport, NO_IMPORT);
   const committable = canCommit(state, csv);
+
+  useEffect(() => {
+    if (state !== NO_IMPORT) announce(state);
+  }, [state]);
 
   return (
     <form action={action} className="grid gap-6">

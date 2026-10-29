@@ -43,7 +43,7 @@ export function Tabs({
           <BaseTabs.Tab
             key={tab.value}
             value={tab.value}
-            className="pressable relative h-11 shrink-0 rounded-md px-3 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 data-[active]:text-foreground"
+            className="relative h-11 shrink-0 pressable rounded-md px-3 text-sm font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 data-[active]:text-foreground"
           >
             {tab.label}
           </BaseTabs.Tab>

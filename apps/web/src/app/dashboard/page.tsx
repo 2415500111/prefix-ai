@@ -1,27 +1,32 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { SkeletonCards, SkeletonList } from "@/components/ui/skeleton";
 import {
+  getBadges,
   getCurrentUser,
   getPatientDrawer,
   listUpcoming,
 } from "@/lib/server/dal";
 
-import { PatientDrawer } from "./coordinator/patient-drawer";
+import { PatientSheet } from "./coordinator/patient-sheet";
+import { SummaryCards, summarize } from "./coordinator/summary-cards";
 import {
   type Filter,
+  FILTERS,
   filterRows,
   UpcomingTable,
 } from "./coordinator/upcoming-table";
 import { DemoControls } from "./demo/demo-controls";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: "Overview",
 };
 
-const NOTICES: Record<string, string> = {
-  failed: "That did not work. Please try again.",
-};
+function readFilter(value: string | string[] | undefined): Filter {
+  return value === "attention" || value === "high" ? value : "all";
+}
 
 async function Board({
   searchParams,
@@ -29,52 +34,88 @@ async function Board({
   searchParams: PageProps<"/dashboard">["searchParams"];
 }) {
   const params = await searchParams;
-  const filter: Filter = params.filter === "attention" ? "attention" : "all";
+  const filter = readFilter(params.filter);
   const appointment =
     typeof params.appointment === "string" ? params.appointment : undefined;
-  const notice =
-    typeof params.notice === "string" ? NOTICES[params.notice] : undefined;
 
-  const [rows, drawer] = await Promise.all([
+  const [rows, drawer, user, badges] = await Promise.all([
     listUpcoming(72),
     appointment ? getPatientDrawer(appointment) : null,
+    getCurrentUser(),
+    getBadges(),
   ]);
+  const counts: Record<Filter, number> = {
+    all: rows.length,
+    attention: filterRows(rows, "attention").length,
+    high: filterRows(rows, "high").length,
+  };
 
   return (
     <>
-      {notice ? (
-        <p role="alert" className="text-sm text-destructive">
-          {notice}
-        </p>
-      ) : null}
-      <div className={`grid gap-6 ${drawer ? "lg:grid-cols-[1fr_26rem]" : ""}`}>
+      <SummaryCards summary={summarize(rows, badges.open_escalations)} />
+      <section aria-labelledby="next-heading" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2
+            id="next-heading"
+            className="text-lg font-semibold tracking-tight"
+          >
+            Next 72 hours
+          </h2>
+          <SegmentedControl
+            label="Filter procedures"
+            value={filter}
+            items={FILTERS.map((item) => ({
+              value: item.value,
+              label: item.label,
+              count: counts[item.value],
+              href: `/dashboard?filter=${item.value}`,
+            }))}
+          />
+        </div>
         <UpcomingTable
           rows={filterRows(rows, filter)}
           filter={filter}
           selectedId={appointment}
         />
-        {drawer ? <PatientDrawer drawer={drawer} filter={filter} /> : null}
-      </div>
+      </section>
+      {drawer ? (
+        <PatientSheet
+          key={drawer.appointment.appointment_id}
+          drawer={drawer}
+          filter={filter}
+          role={user.role}
+        />
+      ) : null}
     </>
   );
 }
 
 async function Demo() {
   const user = await getCurrentUser();
-  return <DemoControls isAdmin={user.role === "ADMIN"} />;
+  if (user.role !== "DEMO_VIEWER" && user.role !== "ADMIN") return null;
+  // Resetting the demo lives in the sidebar's Admin group now.
+  return <DemoControls isAdmin={false} />;
 }
 
 export default function DashboardPage({
   searchParams,
 }: PageProps<"/dashboard">) {
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Coordinator dashboard
-      </h1>
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+          Overview
+        </h1>
+        <p className="text-muted-foreground">
+          Procedures in the next 72 hours, least ready first.
+        </p>
+      </header>
       <Suspense
         fallback={
-          <p className="text-sm text-muted-foreground">Loading procedures…</p>
+          <>
+            <SkeletonCards />
+            <SkeletonList label="Loading procedures" />
+          </>
         }
       >
         <Board searchParams={searchParams} />
