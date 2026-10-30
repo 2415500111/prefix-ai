@@ -37,8 +37,9 @@ export default defineConfig({
     {
       name: "desktop-chrome",
       use: { ...devices["Desktop Chrome"] },
+      // a11y runs in both projects, so screens are scanned at desktop and phone sizes.
       testMatch:
-        /(coordinator|guest|analytics|waitlist|imports|screenshots)\.spec\.ts/,
+        /(coordinator|guest|analytics|waitlist|imports|screenshots|a11y)\.spec\.ts/,
     },
   ],
   webServer: [

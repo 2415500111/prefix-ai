@@ -20,14 +20,51 @@ async function openPortal(page: Page, key: LinkKey): Promise<void> {
   await expect(page).toHaveURL(/\/p\/home$/);
 }
 
+/** Waits for entry animations to finish, so axe measures colours at rest rather than mid-fade. */
+async function settle(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const running = document
+      .getAnimations()
+      .some(
+        (animation) =>
+          animation.playState === "running" &&
+          animation.effect?.getTiming().iterations !== Infinity,
+      );
+    // Entry animations start from opacity 0 (set before hydration), so anything visible and
+    // below full opacity is still on its way in.
+    const fading = Array.from(
+      document.querySelectorAll<HTMLElement>('[style*="opacity"]'),
+    ).some(
+      (element) =>
+        element.checkVisibility() &&
+        Number.parseFloat(element.style.opacity) < 1,
+    );
+    // Streamed content replaces its skeleton later and then fades in.
+    const loading = Array.from(
+      document.querySelectorAll<HTMLElement>(".animate-pulse"),
+    ).some((element) => element.checkVisibility());
+    return !running && !fading && !loading;
+  });
+}
+
 async function expectAccessible(page: Page): Promise<void> {
+  // Next streams the <title> for dynamic pages, so wait for it before scanning.
+  await expect(page).toHaveTitle(/\S/);
+  await settle(page);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations).toEqual([]);
 }
 
-test("a patient confirms a step and reports a problem with a critical one", async ({
+/** The bottom tab bar. Next keeps earlier routes mounted but hidden, so only visible links count. */
+function tab(page: Page, name: string | RegExp) {
+  return page
+    .getByRole("navigation", { name: /^(Sections|हिस्से)$/ })
+    .getByRole("link", { name, exact: typeof name === "string" });
+}
+
+test("a patient opens an update, confirms a step and reports a problem with a critical one", async ({
   page,
 }) => {
   await openPortal(page, "en");
@@ -40,36 +77,66 @@ test("a patient confirms a step and reports a problem with a critical one", asyn
     page.getByRole("heading", { name: "Colonoscopy" }),
   ).toBeVisible();
   await expect(page.getByText("Your procedure is in 2 days.")).toBeVisible();
-  const checklist = page.getByRole("region", {
-    name: "Your readiness checklist",
-  });
-  await expect(checklist.getByText("0 of 2 done")).toBeVisible();
+  const readiness = page.getByRole("region", { name: "Your readiness" });
+  await expect(readiness.getByText("0 of 2 done")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Next step" }).getByRole("heading", {
+      name: "Arrange an escort",
+    }),
+  ).toBeVisible();
   await expectAccessible(page);
 
+  // Updates: the bell and the tab carry the unread count; opening one marks it read.
+  await expect(
+    page.getByRole("link", { name: "Updates, 3 unread" }).first(),
+  ).toBeVisible();
+  await tab(page, /^Updates/).click();
+  await expect(page).toHaveURL(/\/p\/updates$/);
+  await page
+    .getByRole("button", { name: /Do this now: Arrange an escort/ })
+    .click();
+  const sheet = page.getByRole("dialog", {
+    name: "Do this now: Arrange an escort",
+  });
+  await expect(sheet).toBeVisible();
+  await expectAccessible(page);
+  await sheet.getByRole("link", { name: "Go to this step" }).click();
+
+  // My prep: confirm one step, report a problem with another from the bottom sheet.
+  await expect(page).toHaveURL(/\/p\/prep#step-/);
+  // The open sheet hid the tab bar from assistive technology; now it shows one fewer unread.
+  await expect(tab(page, "Updates")).toHaveAccessibleDescription("2 unread");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "My prep" }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Yes, done: Arrange an escort" })
     .click();
-  await expect(checklist.getByText("1 of 2 done")).toBeVisible();
+  await expect(page.getByText("Marked as done")).toBeVisible();
+  await expect(page.getByText("1 of 2 done")).toBeVisible();
 
   await page
-    .getByRole("button", { name: "No / I have a problem: Clear liquids only" })
+    .getByRole("button", { name: "I have a problem: Clear liquids only" })
     .click();
-  await page
+  const problem = page.getByRole("dialog", { name: "Tell us about a problem" });
+  await problem
     .getByLabel("Tell us what is wrong (optional)")
     .fill("I could not buy the prep solution");
-  await page.getByRole("button", { name: "Tell my care team" }).click();
-
-  await expect(
-    page.getByText(/has been told about a problem with your preparation/),
-  ).toBeVisible();
+  await problem.getByRole("button", { name: "Tell my care team" }).click();
+  await expect(page.getByText("Your care team has been told")).toBeVisible();
   const liquids = page
     .getByRole("listitem")
     .filter({ has: page.getByRole("heading", { name: "Clear liquids only" }) });
   await expect(liquids.getByText("Problem reported")).toBeVisible();
   await expectAccessible(page);
+
+  await tab(page, "Home").click();
+  await expect(
+    page.getByText(/has been told about a problem with your preparation/),
+  ).toBeVisible();
 });
 
-test("a magic link works once; the patient can add the date to a calendar and ask to reschedule", async ({
+test("a magic link works once; the patient adds the date to a calendar, clears updates and asks to reschedule", async ({
   page,
   browser,
 }) => {
@@ -83,15 +150,32 @@ test("a magic link works once; the patient can add the date to a calendar and as
   expect(ics).toContain("BEGIN:VCALENDAR");
   expect(ics).toContain("SUMMARY:Colonoscopy");
 
+  await tab(page, /^Updates/).click();
+  await expect(tab(page, "Updates")).toHaveAccessibleDescription("3 unread");
+  await page.getByRole("button", { name: "Mark all as read" }).click();
+  await expect(tab(page, "Updates")).toHaveAccessibleDescription("");
+
+  await tab(page, "Help").click();
+  await expect(page.getByRole("link", { name: "Call 112" })).toHaveAttribute(
+    "href",
+    "tel:112",
+  );
   await page.getByRole("button", { name: "I need to reschedule" }).click();
-  await page
+  const request = page.getByRole("dialog", { name: "Change your date" });
+  await request
     .getByLabel("Anything we should know? (optional)")
     .fill("Travelling that week");
-  await page.getByRole("button", { name: "Ask to reschedule" }).click();
+  await request.getByRole("button", { name: "Ask to reschedule" }).click();
   await expect(
-    page.getByText(
-      "We have asked your care team to call you about a new date.",
-    ),
+    page.getByRole("region", { name: "Change your date" }).getByRole("status"),
+  ).toHaveText(/We have asked your care team to call you/);
+  await expectAccessible(page);
+
+  await tab(page, /^Updates/).click();
+  await expect(
+    page.getByRole("button", {
+      name: /We received your request to change the date/,
+    }),
   ).toBeVisible();
 
   const other = await browser.newContext();
@@ -111,14 +195,21 @@ test("the portal speaks Hindi and can switch to English", async ({ page }) => {
   ).toBeVisible();
   // getByRole skips hidden elements: Next keeps the previous route mounted but hidden.
   await expect(page.getByRole("main")).toHaveAttribute("lang", "hi");
-  await expect(page.getByText(/हिंदी अनुवाद अभी तैयार नहीं/)).toBeVisible();
   await expect(page.getByText("तबीयत ठीक नहीं लग रही?")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "अपडेट, 3 नहीं पढ़े" }).first(),
+  ).toBeVisible();
+  await expectAccessible(page);
+
+  await tab(page, "मेरी तैयारी").click();
+  await expect(page.getByText(/हिंदी अनुवाद अभी तैयार नहीं/)).toBeVisible();
   await expectAccessible(page);
 
   await page.getByRole("button", { name: "English" }).click();
   await expect(
-    page.getByRole("heading", { level: 1, name: "Hello, Ravi" }),
+    page.getByRole("heading", { level: 1, name: "My prep" }),
   ).toBeVisible();
+  await expect(tab(page, "Home")).toBeVisible();
 });
 
 test("without a session the portal shows how to get a new link", async ({

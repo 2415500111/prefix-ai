@@ -148,6 +148,20 @@ for (const [size, use] of Object.entries(SIZES)) {
         }
         index += 1;
       }
+
+      // The redesign only: reporting a problem opens a bottom sheet.
+      await page.goto(`${BASE}/p/prep`);
+      const problem = page
+        .getByRole("button", { name: /I have a problem/ })
+        .first();
+      const shown = await problem
+        .waitFor({ timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (shown) {
+        await problem.click();
+        await shot(page, `${size}-24-portal-problem-sheet`);
+      }
     });
   });
 }

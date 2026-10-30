@@ -33,6 +33,16 @@ async function shot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: path.join(OUT, name) });
 }
 
+/** Lets entrance animations and late requests finish before a screenshot. */
+async function settle(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(600);
+}
+
+function tabBar(page: Page) {
+  return page.getByRole("navigation", { name: "Sections" });
+}
+
 async function signInAsCoordinator(page: Page): Promise<void> {
   const links = fixture();
   await page.goto(`${BASE}/login`);
@@ -55,26 +65,25 @@ test.describe("staff screens", () => {
     await shot(page, "01-login-try-as-guest.png");
   });
 
-  test("coordinator dashboard and patient drawer", async ({ page }) => {
+  test("coordinator overview and patient sheet", async ({ page }) => {
     await signInAsCoordinator(page);
     await expect(
-      page.getByRole("heading", { name: "Coordinator dashboard" }),
+      page.getByRole("heading", { name: "Overview", level: 1 }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Open Asha Test" }),
     ).toBeVisible();
+    await settle(page);
     await shot(page, "02-coordinator-dashboard.png");
 
     // Next navigates on the client; do not wait for a full page load after the click.
     await page
       .getByRole("link", { name: "Open Asha Test" })
       .click({ noWaitAfter: true });
-    await expect(
-      page.getByRole("heading", { name: "Asha Test" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Prep steps" }),
-    ).toBeVisible();
+    const sheet = page.getByRole("dialog", { name: "Asha Test" });
+    await sheet.getByRole("tab", { name: "Prep timeline" }).click();
+    await expect(sheet.getByRole("list", { name: "Prep steps" })).toBeVisible();
+    await settle(page);
     await shot(page, "03-patient-drawer.png");
   });
 
@@ -93,14 +102,19 @@ test.describe("staff screens", () => {
     await page
       .getByRole("link", { name: "Open Meera Test" })
       .click({ noWaitAfter: true });
+    const sheet = page.getByRole("dialog", { name: "Meera Test" });
+    await sheet.getByRole("button", { name: "Cancel", exact: true }).click();
+    const confirm = page.getByRole("dialog", {
+      name: "Cancel Meera Test's procedure?",
+    });
+    await confirm.getByLabel("Reason").selectOption("ATE_OR_DRANK");
+    await confirm.getByRole("button", { name: "Cancel procedure" }).click();
     await expect(
-      page.getByRole("heading", { name: "Meera Test" }),
+      page
+        .getByRole("status")
+        .filter({ hasText: /cancel|release/i })
+        .first(),
     ).toBeVisible();
-    await page
-      .getByLabel("Release the slot: reason")
-      .selectOption("ATE_OR_DRANK");
-    await page.getByRole("button", { name: "Release slot" }).click();
-    await page.waitForLoadState("networkidle");
 
     // The default range is the last 30 days; the fixture's bookings are in the next few days.
     const day = (offset: number) =>
@@ -141,6 +155,7 @@ test.describe("staff screens", () => {
     });
     await page.getByRole("button", { name: "Check file" }).click();
     await expect(page.getByText("1 of 2 rows are valid")).toBeVisible();
+    await settle(page);
     await shot(page, "06-csv-import-dry-run.png");
   });
 });
@@ -156,17 +171,22 @@ test.describe("patient portal on a phone", () => {
     userAgent: phone.userAgent,
   });
 
-  test("prep plan in English", async ({ page }) => {
+  test("home and updates in English", async ({ page }) => {
     await page.goto(portalPath("en"));
     await expect(page).toHaveURL(/\/p\/home$/);
-    await page.waitForLoadState("networkidle");
+    await settle(page);
     await shot(page, "07-portal-english-mobile.png");
+
+    await tabBar(page).getByRole("link", { name: "Updates" }).click();
+    await expect(page).toHaveURL(/\/p\/updates$/);
+    await settle(page);
+    await shot(page, "10-portal-updates-mobile.png");
   });
 
   test("prep plan in Hindi", async ({ page }) => {
     await page.goto(portalPath("hi"));
     await expect(page).toHaveURL(/\/p\/home$/);
-    await page.waitForLoadState("networkidle");
+    await settle(page);
     await shot(page, "08-portal-hindi-mobile.png");
   });
 
@@ -175,14 +195,18 @@ test.describe("patient portal on a phone", () => {
   }) => {
     await page.goto(portalPath("assist"));
     await expect(page).toHaveURL(/\/p\/home$/);
+    // The assistant lives under Help.
+    await tabBar(page).getByRole("link", { name: "Help", exact: true }).click();
+    await expect(page).toHaveURL(/\/p\/help$/);
     await page
       .getByLabel("Your question")
       .fill("Can I drink water before my procedure?");
     await page.getByRole("button", { name: "Send question" }).click();
     // An ordinary answer is announced as a status; the question is repeated inside it.
-    await expect(
-      page.getByRole("status").filter({ hasText: "Can I drink" }).first(),
-    ).toBeVisible();
+    const reply = page.getByRole("status").filter({ hasText: "Can I drink" });
+    await expect(reply.first()).toBeVisible();
+    await reply.first().scrollIntoViewIfNeeded();
+    await settle(page);
     await shot(page, "09-assistant-chat-mobile.png");
   });
 });

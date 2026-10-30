@@ -14,7 +14,15 @@ export default function globalSetup(): void {
   const lastLine = output.trim().split("\n").at(-1) ?? "";
   // Validate before handing to the tests (workers inherit process.env).
   const links = JSON.parse(lastLine) as Record<string, string>;
-  for (const key of ["en", "hi", "reuse"]) {
+  for (const key of [
+    "en",
+    "hi",
+    "reuse",
+    "assist",
+    "message",
+    "a11y_desktop",
+    "a11y_mobile",
+  ]) {
     if (!links[key]?.includes("#token=")) {
       throw new Error(`Fixture did not return a "${key}" magic link`);
     }
