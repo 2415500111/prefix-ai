@@ -1,34 +1,30 @@
 "use server";
 
-import { refresh } from "next/cache";
-import { redirect } from "next/navigation";
-
-import { api, ApiError } from "@/lib/server/api";
+import { type ActionResult, refused } from "../action-result";
+import { performAction } from "../form-action";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_NOTE = 1000;
 
-/** A signed-out session goes to login; any other failure reaches the error page. */
-async function call(path: string, body?: unknown): Promise<void> {
-  try {
-    await api(path, { method: "POST", body });
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) redirect("/login");
-    throw error;
-  }
-  refresh();
-}
-
-export async function acknowledgeEscalation(id: string): Promise<void> {
-  if (!UUID.test(id)) return;
-  await call(`/escalations/${id}/acknowledge`);
+export async function acknowledgeEscalation(id: string): Promise<ActionResult> {
+  if (!UUID.test(id)) return refused("That record no longer exists.");
+  return performAction(
+    `/escalations/${id}/acknowledge`,
+    { method: "POST" },
+    "Escalation acknowledged. You own it now.",
+  );
 }
 
 export async function resolveEscalation(
   id: string,
   formData: FormData,
-): Promise<void> {
+): Promise<ActionResult> {
   const note = String(formData.get("note") ?? "").trim();
-  if (!UUID.test(id) || !note) return;
-  await call(`/escalations/${id}/resolve`, { note: note.slice(0, MAX_NOTE) });
+  if (!UUID.test(id)) return refused("That record no longer exists.");
+  if (!note) return refused("Write what was done before resolving.");
+  return performAction(
+    `/escalations/${id}/resolve`,
+    { method: "POST", body: { note: note.slice(0, MAX_NOTE) } },
+    "Escalation resolved",
+  );
 }

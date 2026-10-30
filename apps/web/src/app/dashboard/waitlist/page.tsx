@@ -11,6 +11,7 @@ import {
 import { AddForm } from "./add-form";
 import { ReleasedSlotCard } from "./released-slot";
 import { WaitlistTable } from "./waitlist-table";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Waitlist" };
 
@@ -84,9 +85,7 @@ async function Board({
             Add a patient
           </h2>
           <Suspense
-            fallback={
-              <p className="text-sm text-muted-foreground">Loading patients…</p>
-            }
+            fallback={<SkeletonList label="Loading patients" rows={3} />}
           >
             <AddForm />
           </Suspense>
@@ -98,9 +97,11 @@ async function Board({
 
 export default function WaitlistPage(props: PageProps<"/dashboard/waitlist">) {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-6 sm:px-8 sm:py-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Waitlist</h1>
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+          Waitlist
+        </h1>
         <p className="text-sm text-muted-foreground">
           A cancelled slot is offered to one patient at a time, the best fit
           first. Each offer waits for a reply before the next patient is
@@ -108,9 +109,7 @@ export default function WaitlistPage(props: PageProps<"/dashboard/waitlist">) {
         </p>
       </div>
       <Suspense
-        fallback={
-          <p className="text-sm text-muted-foreground">Loading the waitlist…</p>
-        }
+        fallback={<SkeletonList label="Loading the waitlist" rows={3} />}
       >
         <Board searchParams={props.searchParams} />
       </Suspense>

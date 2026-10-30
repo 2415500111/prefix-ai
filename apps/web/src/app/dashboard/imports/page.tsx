@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { canImportRecords, getCurrentUser } from "@/lib/server/dal";
 
 import { ImportForm } from "./import-form";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Import" };
 
@@ -21,9 +22,9 @@ async function Board() {
 
 export default function ImportPage() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-6 sm:px-8 sm:py-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
           Import records
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -32,9 +33,7 @@ export default function ImportPage() {
         </p>
       </div>
 
-      <Suspense
-        fallback={<p className="text-sm text-muted-foreground">Loading…</p>}
-      >
+      <Suspense fallback={<SkeletonList label="Loading" rows={3} />}>
         <Board />
       </Suspense>
 

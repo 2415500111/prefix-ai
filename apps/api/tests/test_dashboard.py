@@ -153,6 +153,24 @@ def test_the_drawer_shows_the_timeline_and_is_audited(
     }
 
 
+def test_the_drawer_shows_each_step_as_the_patient_sees_it(
+    client: TestClient, settings: Settings, build: Builder, db_session: Session
+) -> None:
+    booked = book(build, db_session, days_ahead=1)
+
+    body = client.get(
+        f"/dashboard/appointments/{booked.appointment.id}",
+        headers=staff_for(build, db_session, booked, settings),
+    ).json()
+
+    # No reminders were sent, yet a step past its time is due or overdue, not "coming up".
+    assert {step["title"]: step["state"] for step in body["steps"]} == {
+        "Low-fibre diet": "ACTIVE",
+        "Arrange escort": "OVERDUE",
+        "Clear liquids": "DUE",
+    }
+
+
 def test_another_hospitals_drawer_is_not_found(
     client: TestClient, settings: Settings, build: Builder, db_session: Session
 ) -> None:

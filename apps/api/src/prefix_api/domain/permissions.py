@@ -22,6 +22,7 @@ class Permission(StrEnum):
     STEP_CONFIRM = "step:confirm"
     TASK_COMPLETE = "task:complete"
     DEMO_RESET = "demo:reset"
+    MESSAGE_SEND = "message:send"
 
 
 _P = Permission
@@ -56,6 +57,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             _P.STEP_CONFIRM,
             _P.ANALYTICS_READ,
             _P.ANALYTICS_EXPORT,
+            _P.MESSAGE_SEND,
         }
     ),
     Role.NURSE: frozenset(
@@ -68,6 +70,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             _P.TASK_MANAGE,
             _P.TASK_COMPLETE,
             _P.STEP_CONFIRM,
+            _P.MESSAGE_SEND,
         }
     ),
     Role.CLINICIAN: frozenset(

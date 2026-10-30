@@ -163,7 +163,9 @@ Patients open their prep plan from a single-use link (`http://localhost:3000/p#t
 uv run python scripts/e2e_portal_fixture.py
 ```
 
-This creates a throwaway test hospital with three patients (English, Hindi, and one more) whose procedure is in two days, and prints one link for each. Open a link on your phone or in a narrow browser window. Each link works once. Staff can issue a real patient's link with `POST /patients/{id}/magic-links`.
+This creates a throwaway test hospital with a few patients (one in Hindi) whose procedure is in two days, and prints one link for each. Open a link on your phone or in a narrow browser window. Each link works once. Staff can issue a real patient's link with `POST /patients/{id}/magic-links`.
+
+The portal works like a phone app, with a tab bar: **Home** (the procedure, a readiness ring and the next step), **My prep** (every step, with *Yes, done* and *I have a problem*), **Updates** (reminders, steps to do now, care-team messages and answers to reschedule requests, with an unread count on the bell and the tab) and **Help** (call 112 or the hospital, ask to reschedule, and the assistant). Everything is in English and Hindi.
 
 ## Guest demo
 
@@ -182,11 +184,13 @@ Start the app and seed the demo (see [Quick start](#quick-start), or `make up`, 
 
    ![Login page with Try as Guest](docs/screenshots/01-login-try-as-guest.png)
 
-2. **Overview.** *Next 72 hours* lists upcoming procedures, least ready first, with readiness, risk and open escalations. Open a patient to see the prep steps, what has been confirmed and any problem reported.
+2. **Overview.** The sidebar groups the work: *Today* (Overview, Tasks, Requests), *Patients* (Inbox, Waitlist), *Clinical*, *Insights* and *Admin*, with counts on what is waiting. The overview has four summary cards, then the next 72 hours least ready first, each with a coloured risk pill and its reasons. Filter with *All*, *Needs attention* or *High risk*.
 
-   ![Coordinator dashboard](docs/screenshots/02-coordinator-dashboard.png)
+   ![Coordinator overview](docs/screenshots/02-coordinator-dashboard.png)
 
-   ![Patient drawer with prep steps](docs/screenshots/03-patient-drawer.png)
+   Open a patient to see them in a sheet with tabs (Overview, Prep timeline, Messages, Requests, Activity) and an action bar: **Call logged**, **Confirm escort**, **Reschedule** and **Cancel**. Each asks for confirmation, and every action ends in a toast.
+
+   ![Patient sheet with the prep timeline](docs/screenshots/03-patient-drawer.png)
 
 3. **Protocols.** Clinician-approved prep instructions. Only approved versions are ever sent to patients.
 
@@ -196,25 +200,30 @@ Start the app and seed the demo (see [Quick start](#quick-start), or `make up`, 
 
    ![Analytics](docs/screenshots/05-analytics.png)
 
-5. **Inbox and tasks.** Red-flag and out-of-protocol questions from patients reach a nurse in the inbox. Guests can resolve them, since the demo is shared. Tasks are the work the system opened for you, most overdue first; **Log done** closes one.
+5. **Inbox, tasks and requests.** Red-flag and out-of-protocol questions from patients reach a nurse in the inbox. Guests can resolve them, since the demo is shared. Tasks are the work the system opened for you, most overdue first; **Log done** closes one. Requests lists patients who asked to reschedule: **Approve** with a new time, or **Decline**. The patient sees the answer under Updates.
 6. **Waitlist.** The demo has one cancelled slot and three patients waiting for that procedure. Each offer names the patient and says why they fit. Coordinators press **Find backfill**, then **Accept** or **Decline**. Guests see the offer but cannot act on it; sign in as the demo admin to try the actions.
 7. **Import.** Check a CSV of patients before anything is saved. Each bad row is listed with its line and column, and only coordinators and admins can import.
 
    ![CSV import dry run](docs/screenshots/06-csv-import-dry-run.png)
 
-8. **Patient portal.** The patient sees their prep plan on a phone, in English or Hindi, and can confirm a step, report a problem or add the procedure to a calendar. Each link works once. Get fresh test links with `uv run python scripts/e2e_portal_fixture.py`.
+8. **Patient portal.** The patient sees their procedure and prep plan on a phone, in English or Hindi. Home shows a countdown, maps, call and calendar buttons, a readiness ring and the next step. Updates lists what needs doing and what the care team said, newest first; the most urgent unread one also drops in as a banner. Each link works once. Get fresh test links with `uv run python scripts/e2e_portal_fixture.py`.
 
-   <img src="docs/screenshots/07-portal-english-mobile.png" alt="Patient portal in English on a phone" width="300"> <img src="docs/screenshots/08-portal-hindi-mobile.png" alt="Patient portal in Hindi on a phone" width="300">
+   <img src="docs/screenshots/07-portal-english-mobile.png" alt="Patient portal home in English on a phone" width="260"> <img src="docs/screenshots/08-portal-hindi-mobile.png" alt="Patient portal home in Hindi on a phone" width="260"> <img src="docs/screenshots/10-portal-updates-mobile.png" alt="Patient portal Updates on a phone" width="260">
 
-9. **AI assistant.** The patient asks about their own prep. With no Anthropic key set, a question the plan cannot answer goes to a nurse, as in this picture. With a key, the assistant answers only from the patient's own plan.
+9. **AI assistant.** Under Help, the patient asks about their own prep. With no Anthropic key set, a question the plan cannot answer goes to a nurse, as in this picture. With a key, the assistant answers only from the patient's own plan.
 
    <img src="docs/screenshots/09-assistant-chat-mobile.png" alt="AI assistant on a phone" width="300">
 
+
+## Design
+
+Version 1.2 redesigned both apps as a calm medical service with Apple-style motion. [docs/DESIGN.md](docs/DESIGN.md) has the colour and type tokens, the motion rules, where every feature lives, and how patient Updates are built. Before-and-after screenshots at desktop and phone sizes are in [docs/screenshots/redesign/](docs/screenshots/redesign/) (`before/` and `after/`), retaken with `SCREENSHOTS=1 SHOTS_SET=after pnpm --filter @prefix/web exec playwright test redesign-screenshots`.
 
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md): data flow, entities, security model, timeline, portal, integrations.
 - [Compliance](docs/COMPLIANCE.md): how HIPAA and DPDP duties are met, and the gaps.
+- [Design](docs/DESIGN.md): tokens, motion, navigation map and patient Updates.
 - [Deployment](docs/DEPLOYMENT.md): what runs, the environment, the steps, backups, and the known limits.
 - [Integrations](docs/INTEGRATIONS.md): CSV import formats and the FHIR plan.
 - [Risk model](docs/model_report.md): what the cancellation score uses and where it is weak.

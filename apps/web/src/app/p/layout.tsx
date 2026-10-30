@@ -7,18 +7,20 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f5132",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f7fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1118" },
+  ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
-/** The patient portal: mobile-first, large text, one column. */
+/** The patient portal: mobile-first, 17px text, one column. */
 export default function PortalLayout({ children }: LayoutProps<"/p">) {
   return (
-    <div className="flex flex-1 flex-col bg-muted/40 text-lg leading-relaxed">
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-4 sm:py-8">
-        {children}
-      </div>
+    <div className="flex min-h-dvh flex-1 flex-col bg-background text-[17px] leading-[26px]">
+      {children}
     </div>
   );
 }

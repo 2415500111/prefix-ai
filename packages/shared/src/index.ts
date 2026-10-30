@@ -141,6 +141,39 @@ export interface PatientSelf {
   preferred_language: string;
   preferred_channel: string;
   consent_to_message: boolean;
+  hospital_name: string;
+}
+
+export type NotificationKind =
+  | "step_now"
+  | "step_soon"
+  | "care_team_message"
+  | "reschedule_request"
+  | "appointment_moved"
+  | "appointment_cancelled";
+
+/** One item in the patient's Updates. The portal writes the sentence from a fixed template. */
+export interface PortalNotification {
+  key: string;
+  kind: NotificationKind;
+  urgency: "urgent" | "normal";
+  created_at: string;
+  read: boolean;
+  appointment_id: string | null;
+  procedure_name: string | null;
+  timezone: string | null;
+  event_id: string | null;
+  step_title: string | null;
+  step_done: boolean;
+  due_at: string | null;
+  scheduled_at: string | null;
+  request_status: RequestStatus | null;
+  message: string | null;
+}
+
+export interface NotificationFeed {
+  items: PortalNotification[];
+  unread_count: number;
 }
 
 export interface PatientSession {
@@ -238,6 +271,10 @@ export interface DrawerStep {
   requires_confirmation: boolean;
   is_critical: boolean;
   response: string | null;
+  confirmed_at?: string | null;
+  category?: StepCategory | null;
+  /** The state the patient sees in the portal. */
+  state?: StepState | null;
 }
 
 export interface DrawerMessage {
@@ -248,6 +285,8 @@ export interface DrawerMessage {
   body: string;
   error: string | null;
   created_at: string;
+  /** "care_team" when a person on the care team wrote it. */
+  provider?: string | null;
 }
 
 export interface DrawerEscalation {
@@ -264,6 +303,30 @@ export interface DrawerTask {
   title: string;
   status: string;
   due_at: string | null;
+  created_at?: string | null;
+  completed_at?: string | null;
+}
+
+/* Reschedule requests and sidebar badges (see apps/api/src/prefix_api/schemas/requests.py). */
+
+export type RequestStatus = "pending" | "approved" | "declined";
+
+export interface RescheduleRequest {
+  id: string;
+  appointment_id: string;
+  patient_id: string;
+  patient_name: string;
+  procedure_name: string;
+  scheduled_at: string;
+  status: RequestStatus;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface Badges {
+  open_tasks: number;
+  open_escalations: number;
+  pending_requests: number;
 }
 
 export interface Drawer {

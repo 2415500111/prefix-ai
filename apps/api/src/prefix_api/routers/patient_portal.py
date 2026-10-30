@@ -15,6 +15,11 @@ from prefix_api.api.deps import (
 )
 from prefix_api.core.rate_limit import RateLimiter
 from prefix_api.schemas.assistant import AssistantQuestionIn, AssistantReplyOut
+from prefix_api.schemas.notifications import (
+    NotificationFeedOut,
+    NotificationReadIn,
+    NotificationReadOut,
+)
 from prefix_api.schemas.patients import (
     LanguageCode,
     MagicLinkRedeem,
@@ -24,6 +29,7 @@ from prefix_api.schemas.patients import (
 from prefix_api.schemas.portal import PortalAppointment, ProblemReport, RescheduleRequest
 from prefix_api.services.assistant.service import AssistantService
 from prefix_api.services.embeddings import get_embedding_provider
+from prefix_api.services.notifications import NotificationService
 from prefix_api.services.patient_access import PatientAccessService
 from prefix_api.services.portal import PortalService
 
@@ -42,8 +48,32 @@ def redeem_magic_link(
 
 @router.get("/me", dependencies=patient_data)
 def me(principal: CurrentPatient, session: DbSession, settings: SettingsDep) -> PatientSelfOut:
-    patient = PatientAccessService(session, settings).get_self(principal)
-    return PatientSelfOut.model_validate(patient)
+    view = PatientAccessService(session, settings).get_self(principal)
+    return PatientSelfOut.model_validate(view)
+
+
+@router.get("/notifications", dependencies=patient_data)
+def my_notifications(
+    principal: CurrentPatient, session: DbSession, now: Now, lang: LanguageCode = "en"
+) -> NotificationFeedOut:
+    """The patient's updates, newest first, with how many are unread."""
+    return NotificationService(session).feed(principal, now=now, language=lang)
+
+
+@router.post("/notifications/read", dependencies=patient_data)
+def mark_notifications_read(
+    body: NotificationReadIn, principal: CurrentPatient, session: DbSession, now: Now
+) -> NotificationReadOut:
+    unread = NotificationService(session).mark_read(principal, body.keys, now=now)
+    return NotificationReadOut(unread_count=unread)
+
+
+@router.post("/notifications/read-all", dependencies=patient_data)
+def mark_all_notifications_read(
+    principal: CurrentPatient, session: DbSession, now: Now
+) -> NotificationReadOut:
+    unread = NotificationService(session).mark_all_read(principal, now=now)
+    return NotificationReadOut(unread_count=unread)
 
 
 @router.get("/appointments", dependencies=patient_data)

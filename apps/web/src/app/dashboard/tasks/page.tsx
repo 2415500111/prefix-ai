@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import { CircleCheck, Clock } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/action-runner";
+import { PageBody, PageHeader } from "@/components/page-header";
+import { StaggerItem } from "@/components/ui/animated";
+import { Badge } from "@/components/ui/badge";
+import { SkeletonList } from "@/components/ui/skeleton";
 import { listTaskQueue } from "@/lib/server/dal";
 
 import { completeTask } from "../coordinator/actions";
-import { SLA_CLASS, SLA_LABEL } from "../coordinator/sla";
+import { SLA_LABEL, SLA_TONE } from "../coordinator/sla";
 
 export const metadata: Metadata = { title: "Tasks" };
 
@@ -19,99 +24,77 @@ const TIME = new Intl.DateTimeFormat("en-IN", {
 });
 
 async function Queue() {
-  const items = await listTaskQueue();
+  // Reschedule requests have their own page (Requests), so they are not repeated here.
+  const items = (await listTaskQueue()).filter(
+    (item) => item.type !== "RESCHEDULE",
+  );
   if (items.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No open tasks. Well done.</p>
+      <div className="rounded-2xl border border-dashed bg-card px-6 py-12 text-center">
+        <CircleCheck className="mx-auto mb-2 size-8 text-ready" aria-hidden />
+        <p className="font-medium">No open tasks. Well done.</p>
+      </div>
     );
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[40rem] text-left text-sm">
-        <thead className="text-muted-foreground">
-          <tr>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Due
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Time left
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Patient
-            </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
-              Task
-            </th>
-            <th scope="col" className="py-2 font-medium">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.id} className="border-t">
-              <td className="py-2 pr-3">
-                {item.due_at ? (
+    <ul className="flex flex-col gap-2" aria-label="Open tasks">
+      {items.map((item, index) => (
+        <StaggerItem
+          key={item.id}
+          index={index}
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border bg-card px-4 py-3.5 shadow-card"
+        >
+          <Badge variant={SLA_TONE[item.sla]} className="w-36 justify-start">
+            <Clock aria-hidden />
+            {SLA_LABEL[item.sla]}
+          </Badge>
+          <div className="min-w-48 flex-1">
+            <p className="font-medium">{item.title}</p>
+            <p className="text-sm text-muted-foreground">
+              {item.appointment_id ? (
+                <Link
+                  href={`/dashboard?appointment=${item.appointment_id}`}
+                  className="underline-offset-4 hover:underline"
+                >
+                  {item.patient_name}
+                </Link>
+              ) : (
+                item.patient_name
+              )}
+              {item.due_at ? (
+                <>
+                  {" · due "}
                   <time dateTime={item.due_at}>
                     {TIME.format(new Date(item.due_at))}
                   </time>
-                ) : (
-                  "No due time"
-                )}
-              </td>
-              <td className="py-2 pr-3">
-                <span
-                  className={`rounded-full border px-2 py-0.5 ${SLA_CLASS[item.sla]}`}
-                >
-                  {SLA_LABEL[item.sla]}
-                </span>
-              </td>
-              <td className="py-2 pr-3">
-                {item.appointment_id ? (
-                  <Link
-                    href={`/dashboard?appointment=${item.appointment_id}`}
-                    className="underline underline-offset-4"
-                  >
-                    {item.patient_name}
-                  </Link>
-                ) : (
-                  item.patient_name
-                )}
-              </td>
-              <td className="py-2 pr-3">{item.title}</td>
-              <td className="py-2">
-                <form
-                  action={completeTask.bind(null, item.id, "/dashboard/tasks")}
-                >
-                  <Button type="submit" variant="outline" size="sm">
-                    Log done
-                  </Button>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                </>
+              ) : null}
+            </p>
+          </div>
+          <ActionButton
+            variant="outline"
+            size="sm"
+            action={completeTask.bind(null, item.id)}
+          >
+            <CircleCheck aria-hidden />
+            Log done
+          </ActionButton>
+        </StaggerItem>
+      ))}
+    </ul>
   );
 }
 
 export default function TasksPage() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Task queue</h1>
-        <p className="text-sm text-muted-foreground">
-          Work the system opened for you, most overdue first.
-        </p>
-      </div>
-      <Suspense
-        fallback={
-          <p className="text-sm text-muted-foreground">Loading tasks…</p>
-        }
-      >
+    <PageBody>
+      <PageHeader
+        title="Task queue"
+        description="Work the system opened for you, most overdue first."
+      />
+      <Suspense fallback={<SkeletonList label="Loading tasks" />}>
         <Queue />
       </Suspense>
-    </main>
+    </PageBody>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { PortalCard } from "./_portal/portal-card";
 import { RedeemLink } from "./redeem-link";
 
 export const metadata: Metadata = {
@@ -10,9 +11,8 @@ export const metadata: Metadata = {
 
 export default function MagicLinkPage() {
   return (
-    <main className="flex flex-1 flex-col justify-center gap-6 py-10">
-      <h1 className="text-2xl font-semibold">Prefix AI</h1>
+    <PortalCard>
       <RedeemLink />
-    </main>
+    </PortalCard>
   );
 }

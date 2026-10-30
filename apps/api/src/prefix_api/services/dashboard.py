@@ -29,11 +29,13 @@ from prefix_api.domain.enums import (
     AuditAction,
     CheckInResponse,
     EscalationStatus,
+    StepCategory,
     TaskStatus,
     TimelineEventStatus,
 )
 from prefix_api.domain.errors import ConflictError, NotFoundError
 from prefix_api.domain.permissions import Permission
+from prefix_api.domain.portal import StepState, step_view
 from prefix_api.domain.principal import StaffPrincipal
 from prefix_api.domain.risk import RiskResult
 from prefix_api.services.audit import record_audit
@@ -76,6 +78,9 @@ class DrawerStep:
     requires_confirmation: bool
     is_critical: bool
     response: CheckInResponse | None
+    category: StepCategory
+    # The state the patient sees in the portal, so staff and patient never disagree.
+    state: StepState
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +206,15 @@ class DashboardService:
                 requires_confirmation=step.requires_confirmation,
                 is_critical=step.is_critical,
                 response=response,
+                category=step.category,
+                state=step_view(
+                    status=event.status,
+                    requires_confirmation=step.requires_confirmation,
+                    send_at=event.send_at,
+                    due_at=event.due_at,
+                    last_response=response,
+                    now=now,
+                ).state,
             )
             for event, step, response in step_rows
         ]

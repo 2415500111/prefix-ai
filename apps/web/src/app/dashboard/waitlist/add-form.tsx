@@ -1,3 +1,4 @@
+import { ActionForm } from "@/components/action-runner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,7 +7,7 @@ import { listPatients, listProcedureTypes } from "@/lib/server/dal";
 import { addEntry } from "./actions";
 
 const SELECT_CLASS =
-  "h-9 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "h-10 w-full rounded-lg border border-input bg-card px-3 text-[15px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
 
 /** Adds a patient to the waitlist. Shown to people who can manage it. */
 export async function AddForm() {
@@ -15,7 +16,11 @@ export async function AddForm() {
     listProcedureTypes(),
   ]);
   return (
-    <form action={addEntry} className="grid gap-4 sm:grid-cols-2">
+    <ActionForm
+      action={addEntry}
+      label="Add a patient to the waitlist"
+      className="grid gap-4 rounded-2xl border bg-card p-5 shadow-card sm:grid-cols-2"
+    >
       <div className="grid gap-1.5">
         <Label htmlFor="patient_id">Patient</Label>
         <select
@@ -68,6 +73,6 @@ export async function AddForm() {
       <div className="flex items-end">
         <Button type="submit">Add to waitlist</Button>
       </div>
-    </form>
+    </ActionForm>
   );
 }

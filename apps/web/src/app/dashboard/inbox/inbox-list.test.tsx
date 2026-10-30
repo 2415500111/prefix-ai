@@ -41,7 +41,9 @@ describe("nurse inbox", () => {
     render(<InboxList items={[item({})]} />);
 
     expect(screen.getByText("Urgent")).toBeInTheDocument();
-    expect(screen.getByText("Asha Patel · Colonoscopy")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Asha Patel · Colonoscopy" }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/chest pain/)).toBeInTheDocument();
   });
 

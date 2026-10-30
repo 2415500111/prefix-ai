@@ -28,6 +28,7 @@ from prefix_api.routers import (
     analytics,
     appointments,
     auth,
+    badges,
     dashboard,
     demo,
     escalations,
@@ -36,6 +37,7 @@ from prefix_api.routers import (
     patient_portal,
     patients,
     protocols,
+    requests,
     tasks,
     waitlist,
     webhooks,
@@ -120,5 +122,7 @@ def create_app(
     app.include_router(tasks.router)
     app.include_router(waitlist.router)
     app.include_router(imports.router)
+    app.include_router(requests.router)
+    app.include_router(badges.router)
     app.include_router(webhooks.router)
     return app

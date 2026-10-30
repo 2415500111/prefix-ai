@@ -182,6 +182,10 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
   - DUE for steps to confirm, with a 4-hour grace period after their due time, then OVERDUE.
   - DONE once confirmed, and PROBLEM once the patient reports a problem.
 - **Actions.** Confirm a step, report a problem with an optional note, ask to reschedule. The portal and SMS replies share one service (`services/check_ins.py`), so a problem has the same effect either way: a coordinator call task, plus a HIGH escalation and an AT_RISK appointment for a critical step. Free text is stored encrypted and never put in task titles.
+- **Updates** (`GET /patient/notifications`, `services/notifications.py`): a feed derived when it is read from records that already exist.
+  - Kinds: steps that apply now (urgent when critical) or start within 24 hours, care-team messages, reschedule requests (pending, approved, declined), and the procedure being moved or cancelled (moves come from the audit log).
+  - Items carry a kind and structured fields, never sentences. The portal writes each sentence from a fixed English or Hindi template.
+  - Only read marks are stored (`patient_notification_read`, one row per patient and item key). `POST /patient/notifications/read` refuses keys outside the patient's current feed; `read-all` marks everything. A done step counts as read.
 - **Isolation.** Every portal query filters on the patient, not just the organization. Reads are audited as the patient, and the calendar download is audited as an export.
 - **Calendar.** `GET /patient/appointments/{id}/calendar.ics` (RFC 5545) carries only the procedure name, arrival time, place and a link back to the portal.
 - **Languages and accessibility.** The portal's own text is in English and Hindi, and the patient's choice is remembered. Steps show the cached translation, or the approved English text with a notice. The portal is mobile-first, with large type, 48 px tap targets, and states shown by icon and word as well as colour. It is server-rendered, with client JS only for the action buttons. A PWA manifest lets patients add it to the home screen, and an emergency notice is always shown.

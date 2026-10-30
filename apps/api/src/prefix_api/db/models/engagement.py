@@ -3,7 +3,7 @@
 import datetime as dt
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Uuid, text
+from sqlalchemy import DateTime, ForeignKey, Index, String, UniqueConstraint, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from prefix_api.db.base import Base, TenantScoped, Timestamps, UUIDPrimaryKey
@@ -126,3 +126,20 @@ class Message(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     provider_message_id: Mapped[str | None] = mapped_column(String(200), index=True)
     error: Mapped[str | None] = mapped_column(String(500))
     sent_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PatientNotificationRead(UUIDPrimaryKey, TenantScoped, Base):
+    """One update in the patient's portal feed that the patient has read.
+
+    The feed itself is derived from other records when it is read; only the read marks are
+    stored. ``key`` names the item (e.g. ``step-due:<event id>``) and holds no PHI.
+    """
+
+    __tablename__ = "patient_notification_read"
+    __table_args__ = (UniqueConstraint("patient_id", "key"),)
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("patient.id", ondelete="CASCADE"), index=True
+    )
+    key: Mapped[str] = mapped_column(String(120))
+    read_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))

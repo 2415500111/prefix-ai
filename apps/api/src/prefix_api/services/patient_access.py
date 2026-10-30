@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from prefix_api.core.config import Settings
 from prefix_api.core.security import hash_opaque_token, issue_patient_token, new_opaque_token
-from prefix_api.db.models import Patient, PatientMagicLink
-from prefix_api.domain.enums import AuditAction
+from prefix_api.db.models import Organization, PatientMagicLink
+from prefix_api.domain.enums import AuditAction, MessageChannel
 from prefix_api.domain.errors import AuthenticationError, NotFoundError
 from prefix_api.domain.permissions import Permission
 from prefix_api.domain.principal import PatientPrincipal, StaffPrincipal
@@ -27,6 +27,18 @@ class IssuedMagicLink:
 class PatientSession:
     access_token: str
     expires_at: dt.datetime
+
+
+@dataclass(frozen=True, slots=True)
+class PatientSelf:
+    """The patient's own details for the portal, with their hospital's name for the header."""
+
+    id: uuid.UUID
+    first_name: str
+    preferred_language: str
+    preferred_channel: MessageChannel
+    consent_to_message: bool
+    hospital_name: str
 
 
 class PatientAccessService:
@@ -101,7 +113,7 @@ class PatientAccessService:
         )
         return PatientSession(access_token=access_token, expires_at=expires_at)
 
-    def get_self(self, principal: PatientPrincipal) -> Patient:
+    def get_self(self, principal: PatientPrincipal) -> PatientSelf:
         patient = patients_repo.get_patient(
             self._session, principal.organization_id, principal.patient_id
         )
@@ -116,4 +128,12 @@ class PatientAccessService:
             patient_id=patient.id,
             purpose="patient_self_access",
         )
-        return patient
+        organization = self._session.get_one(Organization, patient.organization_id)
+        return PatientSelf(
+            id=patient.id,
+            first_name=patient.first_name,
+            preferred_language=patient.preferred_language,
+            preferred_channel=patient.preferred_channel,
+            consent_to_message=patient.consent_to_message,
+            hospital_name=organization.name,
+        )

@@ -19,6 +19,12 @@ test("a red-flag question tells the patient to call 112 and reaches the nurse in
 }) => {
   await page.goto(portalPath("assist"));
   await expect(page).toHaveURL(/\/p\/home$/);
+  // The assistant lives under Help, next to the emergency box.
+  await page
+    .getByRole("navigation", { name: "Sections" })
+    .getByRole("link", { name: "Help", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/p\/help$/);
 
   await page
     .getByLabel("Your question")

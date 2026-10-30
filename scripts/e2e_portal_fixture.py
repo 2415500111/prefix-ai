@@ -1,8 +1,8 @@
 """Create throwaway patient-portal data for the Playwright end-to-end tests.
 
 Each run creates a fresh organization (so runs never interfere) with an approved protocol,
-three patients with an appointment two days out, and one magic link each. Prints JSON:
-{"en": "<link>", "hi": "<link>", "reuse": "<link>"}.
+a patient per test with an appointment two days out, and one magic link each. Prints JSON:
+{"en": "<link>", "hi": "<link>", "reuse": "<link>", ...}.
 
 Development and CI only: refuses to run against production.
 """
@@ -65,6 +65,11 @@ PATIENTS = {
     "reuse": ("Meera", "en"),
     # Its own link: magic links are single-use, and the assistant test must not share one.
     "assist": ("Priya", "en"),
+    # A care-team message is sent to this patient, then read in the portal's Updates.
+    "message": ("Neha", "en"),
+    # Accessibility scans of every portal tab, one patient per browser project.
+    "a11y_desktop": ("Kavya", "en"),
+    "a11y_mobile": ("Isha", "en"),
 }
 
 

@@ -52,7 +52,9 @@ repos:
         pass_filenames: false
       - id: prettier
         name: prettier
-        entry: pnpm exec prettier --write --ignore-unknown
+        # node runs Prettier directly: on Windows the pnpm .cmd shim goes through cmd.exe,
+        # which cannot pass paths with parentheses such as Next.js route groups, e.g. (app).
+        entry: node node_modules/prettier/bin/prettier.cjs --write --ignore-unknown
         language: system
         files: ^(apps/web|packages)/
         types_or: [ts, tsx, javascript, json, css, yaml]

@@ -91,6 +91,22 @@ export async function requestReschedule(
   });
 }
 
+const NOTIFICATION_KEY = /^[a-z-]+:[0-9a-z:-]+$/;
+const MAX_KEYS = 100;
+
+/** Mark updates as read. Keys outside the patient's own feed are refused by the API. */
+export async function markNotificationsRead(
+  keys: string[],
+): Promise<ActionResult> {
+  const valid = keys.filter((key) => NOTIFICATION_KEY.test(key));
+  if (valid.length === 0 || valid.length > MAX_KEYS) return { ok: false };
+  return run("/patient/notifications/read", { keys: valid });
+}
+
+export async function markAllNotificationsRead(): Promise<ActionResult> {
+  return run("/patient/notifications/read-all");
+}
+
 export async function chooseLanguage(formData: FormData): Promise<void> {
   await storeChosenLanguage(toPortalLang(String(formData.get("lang") ?? "")));
   refresh();

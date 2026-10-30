@@ -61,7 +61,46 @@ interface PortalText {
   askSources: string;
   askHistory: string;
   askDisclaimer: string;
+  // App shell
+  tabs: Record<PortalTab, string>;
+  tabBar: string;
+  bell: (unread: number) => string;
+  unreadBadge: (unread: number) => string;
+  bannerOpen: string;
+  bannerDismiss: string;
+  close: string;
+  // Home
+  readinessTitle: string;
+  readinessAllDone: string;
+  readinessNothing: string;
+  nextStepTitle: string;
+  noNextStep: string;
+  seeFullPlan: string;
+  otherProcedures: string;
+  // My prep
+  prepTitle: string;
+  problemSheetTitle: string;
+  problemSheetHint: (step: string) => string;
+  confirmedToast: string;
+  problemSentToast: string;
+  // Updates
+  updatesTitle: string;
+  markAllRead: string;
+  noUpdates: string;
+  newLabel: string;
+  goToStep: string;
+  updatesFailed: string;
+  // Help
+  helpTitle: string;
+  emergencyCall: string;
+  callHospitalHint: string;
+  noHospitalPhone: string;
+  rescheduleTitle: string;
+  rescheduleHint: string;
+  rescheduleSentToast: string;
 }
+
+export type PortalTab = "home" | "prep" | "updates" | "help";
 
 export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
   en: {
@@ -89,7 +128,7 @@ export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
     important: "Important",
     confirm: "Yes, done",
     confirming: "Saving…",
-    problem: "No / I have a problem",
+    problem: "I have a problem",
     problemNoteLabel: "Tell us what is wrong (optional)",
     sendProblem: "Tell my care team",
     sending: "Sending…",
@@ -124,6 +163,41 @@ export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
     askHistory: "Earlier questions",
     askDisclaimer:
       "Answers come only from your prep plan. For anything else, your care team answers.",
+    tabs: { home: "Home", prep: "My prep", updates: "Updates", help: "Help" },
+    tabBar: "Sections",
+    bell: (unread) => (unread > 0 ? `Updates, ${unread} unread` : "Updates"),
+    unreadBadge: (unread) => `${unread} unread`,
+    bannerOpen: "Open",
+    bannerDismiss: "Hide",
+    close: "Close",
+    readinessTitle: "Your readiness",
+    readinessAllDone: "All your steps are done.",
+    readinessNothing: "Nothing to confirm yet.",
+    nextStepTitle: "Next step",
+    noNextStep: "Nothing to do right now. We will remind you.",
+    seeFullPlan: "See your full prep plan",
+    otherProcedures: "Your other procedures",
+    prepTitle: "My prep",
+    problemSheetTitle: "Tell us about a problem",
+    problemSheetHint: (step) =>
+      `${step}. Your care team will see this and contact you.`,
+    confirmedToast: "Marked as done",
+    problemSentToast: "Your care team has been told",
+    updatesTitle: "Updates",
+    markAllRead: "Mark all as read",
+    noUpdates:
+      "No updates yet. We will tell you here when there is something to do.",
+    newLabel: "New",
+    goToStep: "Go to this step",
+    updatesFailed: "We could not update this. Please try again.",
+    helpTitle: "Help",
+    emergencyCall: "Call 112",
+    callHospitalHint: "For questions about your procedure or your prep.",
+    noHospitalPhone: "Please use the phone number in your hospital's message.",
+    rescheduleTitle: "Change your date",
+    rescheduleHint:
+      "Ask your care team to move your procedure. They will call you.",
+    rescheduleSentToast: "Request sent",
   },
   hi: {
     greeting: (name) => `नमस्ते, ${name}`,
@@ -150,7 +224,7 @@ export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
     important: "ज़रूरी",
     confirm: "हाँ, हो गया",
     confirming: "सहेजा जा रहा है…",
-    problem: "नहीं / मुझे समस्या है",
+    problem: "मुझे समस्या है",
     problemNoteLabel: "बताइए क्या समस्या है (वैकल्पिक)",
     sendProblem: "मेरी देखभाल टीम को बताएँ",
     sending: "भेजा जा रहा है…",
@@ -186,6 +260,41 @@ export const PORTAL_TEXT: Record<PortalLang, PortalText> = {
     askHistory: "पहले के सवाल",
     askDisclaimer:
       "जवाब केवल आपकी तैयारी की योजना से आते हैं। बाकी सवालों के जवाब आपकी देखभाल टीम देगी।",
+    tabs: { home: "होम", prep: "मेरी तैयारी", updates: "अपडेट", help: "मदद" },
+    tabBar: "हिस्से",
+    bell: (unread) => (unread > 0 ? `अपडेट, ${unread} नहीं पढ़े` : "अपडेट"),
+    unreadBadge: (unread) => `${unread} नहीं पढ़े`,
+    bannerOpen: "खोलें",
+    bannerDismiss: "छिपाएँ",
+    close: "बंद करें",
+    readinessTitle: "आपकी तैयारी",
+    readinessAllDone: "आपके सभी चरण पूरे हो गए हैं।",
+    readinessNothing: "अभी पुष्टि करने के लिए कुछ नहीं है।",
+    nextStepTitle: "अगला चरण",
+    noNextStep: "अभी कुछ करने की ज़रूरत नहीं है। हम आपको याद दिलाएँगे।",
+    seeFullPlan: "पूरी तैयारी योजना देखें",
+    otherProcedures: "आपकी दूसरी प्रक्रियाएँ",
+    prepTitle: "मेरी तैयारी",
+    problemSheetTitle: "समस्या के बारे में बताएँ",
+    problemSheetHint: (step) =>
+      `${step}। आपकी देखभाल टीम इसे देखेगी और आपसे संपर्क करेगी।`,
+    confirmedToast: "पूरा दर्ज किया गया",
+    problemSentToast: "आपकी देखभाल टीम को बता दिया गया है",
+    updatesTitle: "अपडेट",
+    markAllRead: "सभी को पढ़ा हुआ करें",
+    noUpdates: "अभी कोई अपडेट नहीं है। कुछ करना होगा तो हम आपको यहाँ बताएँगे।",
+    newLabel: "नया",
+    goToStep: "इस चरण पर जाएँ",
+    updatesFailed: "यह अपडेट नहीं हो पाया। कृपया फिर से कोशिश करें।",
+    helpTitle: "मदद",
+    emergencyCall: "112 पर फ़ोन करें",
+    callHospitalHint: "अपनी प्रक्रिया या तैयारी के बारे में सवालों के लिए।",
+    noHospitalPhone:
+      "कृपया अस्पताल के संदेश में दिया गया फ़ोन नंबर इस्तेमाल करें।",
+    rescheduleTitle: "तारीख बदलें",
+    rescheduleHint:
+      "अपनी देखभाल टीम से प्रक्रिया की तारीख बदलने को कहें। वे आपको फ़ोन करेंगे।",
+    rescheduleSentToast: "अनुरोध भेज दिया गया",
   },
 };
 

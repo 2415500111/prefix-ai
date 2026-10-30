@@ -12,10 +12,12 @@ from prefix_api.domain.enums import (
     MessageDirection,
     MessageStatus,
     RiskLevel,
+    StepCategory,
     TaskStatus,
     TaskType,
     TimelineEventStatus,
 )
+from prefix_api.domain.portal import StepState
 
 
 class UpcomingOut(BaseModel):
@@ -46,6 +48,10 @@ class DrawerStepOut(BaseModel):
     requires_confirmation: bool
     is_critical: bool
     response: CheckInResponse | None
+    confirmed_at: dt.datetime | None = None
+    category: StepCategory | None = None
+    # The state the patient sees in the portal (DONE, DUE, OVERDUE, PROBLEM, ...).
+    state: StepState | None = None
 
 
 class DrawerMessageOut(BaseModel):
@@ -58,6 +64,8 @@ class DrawerMessageOut(BaseModel):
     body: str
     error: str | None
     created_at: dt.datetime
+    # "care_team" marks a message written by staff (shown in the patient's Updates).
+    provider: str | None = None
 
 
 class DrawerEscalationOut(BaseModel):
@@ -74,6 +82,8 @@ class DrawerTaskOut(BaseModel):
     title: str
     status: TaskStatus
     due_at: dt.datetime | None
+    created_at: dt.datetime | None = None
+    completed_at: dt.datetime | None = None
 
 
 class DrawerOut(BaseModel):

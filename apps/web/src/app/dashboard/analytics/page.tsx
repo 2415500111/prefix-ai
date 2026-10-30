@@ -15,6 +15,7 @@ import {
 import { AnalyticsView } from "./analytics-view";
 import { lastThirtyDays } from "./range";
 import { PrintButton } from "./print-button";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Analytics" };
 
@@ -82,9 +83,11 @@ export default function AnalyticsPage({
   searchParams,
 }: PageProps<"/dashboard/analytics">) {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6 print:max-w-none print:py-4">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8 print:max-w-none print:py-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+          Analytics
+        </h1>
         <p className="text-sm text-muted-foreground">
           How often procedures were cancelled, why, and what it cost in theatre
           time.
@@ -122,9 +125,7 @@ export default function AnalyticsPage({
         </Button>
       </form>
 
-      <Suspense
-        fallback={<p className="text-sm text-muted-foreground">Loading…</p>}
-      >
+      <Suspense fallback={<SkeletonList label="Loading" rows={3} />}>
         <Results searchParams={searchParams} />
       </Suspense>
     </main>

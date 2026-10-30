@@ -4,7 +4,7 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Released. Version 1.0.0 shipped on 2026-10-28 (tag `v1.0.0`), with the polish release v1.0.1 on 2026-10-29 (local development guide, `corepack enable` setup, README quick start and screenshots). All phases 0–12 are merged.
+**Status:** Released. Version 1.0.0 shipped on 2026-10-28 (tag `v1.0.0`), with the polish release v1.0.1 on 2026-10-29 (local development guide, `corepack enable` setup, README quick start and screenshots) and the UI redesign v1.2.0 on 2026-10-30 (see the last entry below). All phases 0–12 are merged.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
 **Known gaps before a real hospital goes live** (details in [docs/COMPLIANCE.md](docs/COMPLIANCE.md)): no retention schedule or erasure job; no subject-access export; no breach-notification workflow; no first-admin command for a real hospital (the seed creates demonstration data only); vendor agreements (Twilio, SMTP, Anthropic) are the hospital's to sign.
 
@@ -189,4 +189,12 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - No first-admin command for a real hospital. The seed creates demonstration data only, so a real admin is created by hand (`docs/DEPLOYMENT.md`).
   - The content policy allows inline scripts because Next.js needs them for page data. Nonces are the next step.
   - The portal can take more than 5 seconds to leave the magic-link page under a full parallel run, so the e2e expect timeout is 15 seconds. Single-worker runs are fast. The exact cause under load is not isolated.
-  - The README walkthrough is text only. Screenshots were not produced.
+  - The README walkthrough is text only. Screenshots were not produced. (Added in v1.0.1.)
+- [x] **v1.2 — UI redesign** · 2026-10-30 · `v1.2.0` · branch `feat-ui-redesign`
+  A calm medical design system (teal-blue, cool greys, green/amber/red status, light and dark tokens, system fonts with Noto Sans Devanagari) and Apple-style motion with spring presets and reduced-motion support (`docs/DESIGN.md`). Staff get a grouped sidebar with badge counts, a top bar with patient search and notifications, an overview with summary cards and risk pills, a patient sheet with tabs and a confirmed action bar, a Requests page, and a toast for every action. The patient portal became a phone app with Home, My prep, Updates and Help tabs, an unread bell and an urgent banner. New endpoints: patient notifications (derived feed plus a `patient_notification_read` table, migration 0009), call logging, staff messages, reschedule request answers and sidebar badges, all audited.
+  Verified: 505 pytest, 112 Vitest, 16 Playwright (portal, staff, and a new axe spec at desktop and phone size), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
+  **Notes:**
+  - Notification text is never generated: the API sends a kind and fields, and the portal fills fixed English and Hindi templates. Red-flag content is never echoed back as an update.
+  - The staff patient sheet now shows each step's state as the patient sees it, so a step past its time reads "Due now" or "Overdue" even when no reminder went out.
+  - Found while testing: toasts were hidden from screen readers while a modal sheet was open, and the risk score text in the amber pill was below 4.5:1. Both fixed.
+  - The pre-commit Prettier hook now runs through `node`: on Windows the pnpm shim could not pass the `(app)` route-group paths.
