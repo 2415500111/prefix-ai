@@ -273,6 +273,8 @@ export interface DrawerStep {
   response: string | null;
   confirmed_at?: string | null;
   category?: StepCategory | null;
+  /** The state the patient sees in the portal. */
+  state?: StepState | null;
 }
 
 export interface DrawerMessage {

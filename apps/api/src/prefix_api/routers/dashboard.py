@@ -65,6 +65,7 @@ def _drawer(drawer: Drawer) -> DrawerOut:
                 response=step.response,
                 confirmed_at=step.event.confirmed_at,
                 category=step.category,
+                state=step.state,
             )
             for step in drawer.steps
         ],

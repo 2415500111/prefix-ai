@@ -17,6 +17,7 @@ from prefix_api.domain.enums import (
     TaskType,
     TimelineEventStatus,
 )
+from prefix_api.domain.portal import StepState
 
 
 class UpcomingOut(BaseModel):
@@ -49,6 +50,8 @@ class DrawerStepOut(BaseModel):
     response: CheckInResponse | None
     confirmed_at: dt.datetime | None = None
     category: StepCategory | None = None
+    # The state the patient sees in the portal (DONE, DUE, OVERDUE, PROBLEM, ...).
+    state: StepState | None = None
 
 
 class DrawerMessageOut(BaseModel):

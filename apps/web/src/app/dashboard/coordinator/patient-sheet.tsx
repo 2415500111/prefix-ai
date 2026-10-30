@@ -90,10 +90,14 @@ export function stepState(step: DrawerStep): {
   }
   if (step.status === "CONFIRMED") return { label: "Done", tone: "ready" };
   if (step.status === "MISSED") return { label: "Missed", tone: "urgent" };
-  if (step.status === "SENT")
-    return { label: "Sent, waiting", tone: "attention" };
   if (step.status === "SKIPPED")
     return { label: "Not needed", tone: "neutral" };
+  // The same state the patient sees: a step past its time is due, even without a reminder.
+  if (step.state === "OVERDUE") return { label: "Overdue", tone: "attention" };
+  if (step.state === "DUE") return { label: "Due now", tone: "attention" };
+  if (step.state === "ACTIVE") return { label: "In effect", tone: "neutral" };
+  if (step.status === "SENT")
+    return { label: "Sent, waiting", tone: "attention" };
   return { label: "Coming up", tone: "neutral" };
 }
 

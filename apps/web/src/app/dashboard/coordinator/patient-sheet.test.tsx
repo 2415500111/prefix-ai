@@ -84,6 +84,12 @@ describe("patient sheet logic", () => {
     );
     expect(stepState(step({ status: "CONFIRMED" })).label).toBe("Done");
     expect(stepState(step({ status: "PENDING" })).label).toBe("Coming up");
+    expect(stepState(step({ status: "PENDING", state: "OVERDUE" })).label).toBe(
+      "Overdue",
+    );
+    expect(stepState(step({ status: "SENT", state: "DUE" })).label).toBe(
+      "Due now",
+    );
   });
 
   it("builds one activity feed, newest first, with plain words", () => {
