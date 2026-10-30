@@ -29,6 +29,8 @@ const TABS = [
   Icon: LucideIcon;
 }[];
 
+const UNREAD_ID = "portal-unread-count";
+
 /** The iOS-style tab bar. The pill behind the active icon glides between tabs. */
 export function TabBar({ lang, unread }: { lang: PortalLang; unread: number }) {
   const pathname = usePathname();
@@ -49,6 +51,8 @@ export function TabBar({ lang, unread }: { lang: PortalLang; unread: number }) {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
+                // The name stays "Updates" (matching what is shown); the count is its description.
+                aria-describedby={badge ? UNREAD_ID : undefined}
                 className={`flex flex-1 pressable flex-col items-center justify-center gap-0.5 text-[12px] font-medium focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none focus-visible:ring-inset ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
@@ -76,10 +80,13 @@ export function TabBar({ lang, unread }: { lang: PortalLang; unread: number }) {
                   ) : null}
                 </span>
                 <span>{t.tabs[tab]}</span>
-                {badge ? (
-                  <span className="sr-only">{`, ${t.unreadBadge(unread)}`}</span>
-                ) : null}
               </Link>
+              {/* Outside the link, so it describes the tab without joining its name. */}
+              {badge ? (
+                <span id={UNREAD_ID} className="sr-only">
+                  {t.unreadBadge(unread)}
+                </span>
+              ) : null}
             </li>
           );
         })}

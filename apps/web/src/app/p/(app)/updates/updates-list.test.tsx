@@ -171,8 +171,9 @@ describe("tab bar", () => {
   it("marks the current tab and announces the unread count", () => {
     render(<TabBar lang="en" unread={3} />);
 
-    const updates = screen.getByRole("link", { name: "Updates, 3 unread" });
+    const updates = screen.getByRole("link", { name: "Updates" });
     expect(updates).toHaveAttribute("aria-current", "page");
+    expect(updates).toHaveAccessibleDescription("3 unread");
     expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute(
       "aria-current",
     );

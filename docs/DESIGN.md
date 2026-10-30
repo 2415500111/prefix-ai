@@ -51,7 +51,7 @@ All ratios were measured with the WCAG 2.2 relative-luminance formula. Every tex
 
 - **Radius:** buttons and inputs 12px, cards 16px, sheets and dialogs 20px, pills fully rounded.
 - **Shadows (layered, soft):** `--shadow-card` for resting cards, `--shadow-raised` for popovers and toasts, `--shadow-overlay` for sheets and dialogs. Each is two stacked, low-opacity shadows tinted with the foreground colour.
-- **Glass:** the top bar, sheets' headers, popovers, toasts and the portal tab bar use `background: color-mix(card 72%, transparent)` with `backdrop-filter: saturate(180%) blur(20px)`, like macOS. Where `backdrop-filter` is unsupported, the surface is opaque.
+- **Glass:** the top bar, sheets' headers, popovers, toasts and the portal tab bar use `background: color-mix(card 86%, transparent)` with `backdrop-filter: saturate(180%) blur(20px)`, like macOS. Where `backdrop-filter` is unsupported, the surface is opaque.
 - **Icons:** lucide, 18px in lists and 20px in navigation, stroke 1.75. Medical meaning first: `Stethoscope`, `ClipboardList`, `CalendarClock`, `HeartPulse`, `BellRing`, `ShieldAlert`.
 
 ## 3. Motion

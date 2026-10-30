@@ -177,7 +177,7 @@
 
 /* Frosted glass, like macOS: the top bar, sheet headers, popovers, toasts, the tab bar. */
 @utility glass {
-  background-color: color-mix(in oklab, var(--card) 72%, transparent);
+  background-color: color-mix(in oklab, var(--card) 86%, transparent);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   @supports not (

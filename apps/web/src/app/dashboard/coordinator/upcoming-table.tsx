@@ -47,7 +47,7 @@ export function RiskPill({
     <Badge variant={risk.tone}>
       <span aria-hidden className="size-1.5 rounded-full bg-current" />
       {risk.label}
-      <span className="font-normal opacity-80">{score}</span>
+      <span className="font-normal tabular-nums">{score}</span>
     </Badge>
   );
 }
@@ -116,7 +116,7 @@ export function UpcomingTable({
           <StaggerItem key={row.appointment_id} index={index}>
             <div
               className={cn(
-                "group relative flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border bg-card px-4 py-3.5 shadow-card transition-shadow hover:shadow-raised",
+                "group relative flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl border bg-card py-3.5 pr-10 pl-4 shadow-card transition-shadow hover:shadow-raised",
                 selected && "ring-2 ring-primary",
               )}
             >
@@ -139,7 +139,7 @@ export function UpcomingTable({
                 </p>
               </div>
               <ReadinessBar value={row.readiness} />
-              <div className="flex w-64 flex-col gap-1">
+              <div className="flex w-56 flex-col gap-1">
                 <RiskPill level={row.risk_level} score={row.risk_score} />
                 {row.risk_reasons.length > 0 ? (
                   <p className="line-clamp-1 text-xs text-muted-foreground">
@@ -167,7 +167,7 @@ export function UpcomingTable({
                 ) : null}
               </div>
               <ChevronRight
-                className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                className="absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-muted-foreground transition-transform group-hover:translate-x-0.5"
                 aria-hidden
               />
             </div>

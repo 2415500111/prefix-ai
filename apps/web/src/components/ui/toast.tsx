@@ -93,7 +93,7 @@ function ToastCard({ item }: { item: ToastItem }) {
   }, [item]);
 
   return (
-    <motion.li
+    <motion.div
       layout
       role={item.tone === "error" ? "alert" : "status"}
       initial={{ opacity: 0, y: -24, scale: 0.96 }}
@@ -126,7 +126,7 @@ function ToastCard({ item }: { item: ToastItem }) {
       >
         <X className="size-4" aria-hidden />
       </button>
-    </motion.li>
+    </motion.div>
   );
 }
 
@@ -137,8 +137,10 @@ export function Toaster() {
     () => EMPTY,
   );
   return (
-    <ol
-      aria-label="Notifications"
+    // An explicit live region: modal dialogs and sheets hide everything outside them from
+    // assistive technology except elements with aria-live, so toasts are still announced.
+    <div
+      aria-live="polite"
       className="pointer-events-none fixed inset-x-0 top-3 z-[100] mx-auto flex w-[min(28rem,calc(100vw-1.5rem))] flex-col gap-2"
     >
       <AnimatePresence initial={false}>
@@ -146,6 +148,6 @@ export function Toaster() {
           <ToastCard key={item.id} item={item} />
         ))}
       </AnimatePresence>
-    </ol>
+    </div>
   );
 }
