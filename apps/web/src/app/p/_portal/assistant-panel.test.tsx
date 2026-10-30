@@ -50,7 +50,7 @@ describe("assistant panel", () => {
     const link = screen.getByRole("link", { name: "Low-fibre diet" });
     expect(link).toHaveAttribute(
       "href",
-      "#step-22222222-2222-4222-8222-222222222222",
+      "/p/prep#step-22222222-2222-4222-8222-222222222222",
     );
   });
 

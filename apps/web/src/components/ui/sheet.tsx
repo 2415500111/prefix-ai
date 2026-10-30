@@ -41,6 +41,7 @@ export function Sheet({
   footer,
   children,
   className,
+  closeLabel = "Close",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,6 +53,7 @@ export function Sheet({
   footer?: ReactNode;
   children: ReactNode;
   className?: string;
+  closeLabel?: string;
 }) {
   const phone = useMediaQuery("(max-width: 639px)");
   const resolved: Side = side === "auto" ? (phone ? "bottom" : "right") : side;
@@ -121,7 +123,7 @@ export function Sheet({
                 ) : null}
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
-                    <BaseDialog.Title className="truncate text-lg font-semibold tracking-tight">
+                    <BaseDialog.Title className="line-clamp-2 text-lg font-semibold tracking-tight">
                       {title}
                     </BaseDialog.Title>
                     {description ? (
@@ -136,7 +138,7 @@ export function Sheet({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        aria-label="Close"
+                        aria-label={closeLabel}
                       />
                     }
                   >

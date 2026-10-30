@@ -141,6 +141,39 @@ export interface PatientSelf {
   preferred_language: string;
   preferred_channel: string;
   consent_to_message: boolean;
+  hospital_name: string;
+}
+
+export type NotificationKind =
+  | "step_now"
+  | "step_soon"
+  | "care_team_message"
+  | "reschedule_request"
+  | "appointment_moved"
+  | "appointment_cancelled";
+
+/** One item in the patient's Updates. The portal writes the sentence from a fixed template. */
+export interface PortalNotification {
+  key: string;
+  kind: NotificationKind;
+  urgency: "urgent" | "normal";
+  created_at: string;
+  read: boolean;
+  appointment_id: string | null;
+  procedure_name: string | null;
+  timezone: string | null;
+  event_id: string | null;
+  step_title: string | null;
+  step_done: boolean;
+  due_at: string | null;
+  scheduled_at: string | null;
+  request_status: RequestStatus | null;
+  message: string | null;
+}
+
+export interface NotificationFeed {
+  items: PortalNotification[];
+  unread_count: number;
 }
 
 export interface PatientSession {

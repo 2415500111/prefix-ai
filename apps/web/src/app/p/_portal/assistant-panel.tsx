@@ -1,6 +1,7 @@
 "use client";
 
 import type { AssistantReply } from "@prefix/shared";
+import { MessageCircleQuestionMark } from "lucide-react";
 import { useActionState, useId } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -20,20 +21,29 @@ function ReplyView({
 }) {
   const t = PORTAL_TEXT[lang];
   // Emergency wording is announced at once; other replies politely.
-  const role = reply.outcome === EMERGENCY_OUTCOME ? "alert" : "status";
+  const emergency = reply.outcome === EMERGENCY_OUTCOME;
   return (
-    <div role={role} className="flex flex-col gap-3 rounded-lg border p-4">
-      <p className="text-sm text-muted-foreground">{reply.question}</p>
-      <p className="text-base font-medium whitespace-pre-line">{reply.reply}</p>
+    <div
+      role={emergency ? "alert" : "status"}
+      className={`flex flex-col gap-3 rounded-2xl p-4 ${
+        emergency
+          ? "border border-urgent/30 bg-urgent-soft text-urgent-foreground"
+          : "bg-muted"
+      }`}
+    >
+      <p className={`text-[15px] ${emergency ? "" : "text-muted-foreground"}`}>
+        {reply.question}
+      </p>
+      <p className="font-medium whitespace-pre-line">{reply.reply}</p>
       {reply.citations.length > 0 ? (
         <div>
-          <p className="text-sm text-muted-foreground">{t.askSources}</p>
+          <p className="text-[15px] text-muted-foreground">{t.askSources}</p>
           <ul className="mt-1 flex flex-col gap-1">
             {reply.citations.map((citation) => (
               <li key={citation.event_id}>
                 <a
-                  className="underline underline-offset-4"
-                  href={`#step-${citation.event_id}`}
+                  className="font-medium text-primary underline underline-offset-4"
+                  href={`/p/prep#step-${citation.event_id}`}
                 >
                   {citation.title}
                 </a>
@@ -69,18 +79,26 @@ export function AssistantPanel({
   return (
     <section
       aria-labelledby={`ask-${fieldId}`}
-      className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm"
+      className="flex flex-col gap-4 rounded-[20px] border bg-card p-5 shadow-card"
     >
-      <div>
-        <h2 id={`ask-${fieldId}`} className="text-xl font-semibold">
-          {t.askTitle}
-        </h2>
-        <p className="text-base text-muted-foreground">{t.askHint}</p>
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary-soft-foreground"
+        >
+          <MessageCircleQuestionMark className="size-5" strokeWidth={1.75} />
+        </span>
+        <div>
+          <h2 id={`ask-${fieldId}`} className="text-[20px] font-semibold">
+            {t.askTitle}
+          </h2>
+          <p className="text-[15px] text-muted-foreground">{t.askHint}</p>
+        </div>
       </div>
 
       <form action={action} className="flex flex-col gap-3">
         <input type="hidden" name="lang" value={lang} />
-        <label htmlFor={`q-${fieldId}`} className="text-base font-medium">
+        <label htmlFor={`q-${fieldId}`} className="font-medium">
           {t.askLabel}
         </label>
         <Textarea
@@ -88,24 +106,24 @@ export function AssistantPanel({
           name="question"
           maxLength={1000}
           rows={3}
-          className="text-base"
+          className="text-[17px]"
         />
-        <Button type="submit" className="h-12 text-base" disabled={pending}>
+        <Button type="submit" className="h-12 text-[17px]" disabled={pending}>
           {pending ? t.askSending : t.askSend}
         </Button>
       </form>
 
       {errorText ? (
-        <p role="alert" className="text-base text-destructive">
+        <p role="alert" className="text-urgent-foreground">
           {errorText}
         </p>
       ) : null}
       {latest ? <ReplyView reply={latest} lang={lang} /> : null}
-      <p className="text-sm text-muted-foreground">{t.askDisclaimer}</p>
+      <p className="text-[15px] text-muted-foreground">{t.askDisclaimer}</p>
 
       {earlier.length > 0 ? (
         <details>
-          <summary className="cursor-pointer text-base font-medium">
+          <summary className="flex min-h-12 cursor-pointer items-center font-medium">
             {t.askHistory} ({earlier.length})
           </summary>
           <div className="mt-3 flex flex-col gap-3">
