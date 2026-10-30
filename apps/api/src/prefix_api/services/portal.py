@@ -30,6 +30,7 @@ from prefix_api.domain.enums import (
     MessageChannel,
     MessageDirection,
     MessageStatus,
+    StaffNotificationKind,
     TaskStatus,
     TaskType,
     TimelineEventStatus,
@@ -37,9 +38,11 @@ from prefix_api.domain.enums import (
 from prefix_api.domain.errors import AuthenticationError, ConflictError, NotFoundError
 from prefix_api.domain.portal import StepView, step_view
 from prefix_api.domain.principal import PatientPrincipal
+from prefix_api.domain.red_flags import describe, detect_red_flags
 from prefix_api.schemas.portal import PortalAppointment, PortalFacility, PortalStep
 from prefix_api.services.audit import record_audit
 from prefix_api.services.check_ins import create_task, record_answer
+from prefix_api.services.staff_notifications import notify_staff
 from prefix_api.services.step_translations import base_language, cached_translations
 from prefix_api.services.translation import SOURCE_LANGUAGE
 
@@ -190,6 +193,19 @@ class PortalService:
                 patient_id=patient.id,
                 purpose="patient_reschedule_request",
             )
+        flags = detect_red_flags(note) if note else frozenset()
+        notify_staff(
+            self._session,
+            principal=principal,
+            patient=patient,
+            appointment_id=appointment.id,
+            kind=StaffNotificationKind.RESCHEDULE,
+            summary="Asked to move the procedure"
+            + (f". Mentions {describe(flags)}" if flags else ""),
+            now=now,
+            red_flag=bool(flags),
+            task=task,
+        )
 
     def calendar(
         self,

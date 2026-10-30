@@ -1,4 +1,7 @@
-"""The nurse inbox: urgent first, acknowledge and resolve, and who may see it (safety rule d)."""
+"""The nurse inbox: newest first, acknowledge and resolve, and who may see it (safety rule d).
+
+The ordering itself is covered in test_staff_notifications.py.
+"""
 
 import datetime as dt
 
@@ -60,12 +63,12 @@ def nurse_headers(
     return staff_headers(settings, user)
 
 
-def test_inbox_lists_the_most_urgent_first(
+def test_inbox_rows_name_the_patient_and_procedure(
     client: TestClient, settings: Settings, build: Builder, db_session: Session
 ) -> None:
     # One booking, so both escalations belong to the same hospital as the nurse.
     booked = book(build, db_session)
-    normal = open_escalation(db_session, booked, EscalationSeverity.NORMAL, "Asked for help")
+    open_escalation(db_session, booked, EscalationSeverity.NORMAL, "Asked for help")
     urgent = open_escalation(db_session, booked, EscalationSeverity.URGENT, "Chest pain")
 
     response = client.get(
@@ -73,8 +76,7 @@ def test_inbox_lists_the_most_urgent_first(
     )
 
     assert response.status_code == 200
-    ids = [row["id"] for row in response.json()]
-    assert ids.index(str(urgent.id)) < ids.index(str(normal.id))
+    assert len(response.json()) == 2
     urgent_row = next(row for row in response.json() if row["id"] == str(urgent.id))
     assert urgent_row["patient_name"] == f"{booked.patient.first_name} {booked.patient.last_name}"
     assert urgent_row["procedure_name"] == "Colonoscopy"

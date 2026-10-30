@@ -22,10 +22,12 @@ Handler = Annotated[StaffPrincipal, Depends(require(Permission.ESCALATION_HANDLE
 def list_escalations(
     principal: Handler,
     session: DbSession,
+    now: Now,
     status: Literal["open", "resolved", "all"] = "open",
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> list[EscalationOut]:
-    items = EscalationService(session).inbox(principal, status=status, limit=limit)
+    """Newest first by when it was raised; urgency is shown, never sorted on."""
+    items = EscalationService(session).inbox(principal, now=now, status=status, limit=limit)
     return [EscalationOut.from_item(item) for item in items]
 
 
@@ -35,7 +37,7 @@ def acknowledge_escalation(
 ) -> EscalationOut:
     service = EscalationService(session)
     service.acknowledge(principal, escalation_id, now=now)
-    return EscalationOut.from_item(service.item(principal, escalation_id))
+    return EscalationOut.from_item(service.item(principal, escalation_id, now=now))
 
 
 @router.post("/{escalation_id}/resolve")
@@ -48,4 +50,4 @@ def resolve_escalation(
 ) -> EscalationOut:
     service = EscalationService(session)
     service.resolve(principal, escalation_id, note=body.note, now=now)
-    return EscalationOut.from_item(service.item(principal, escalation_id))
+    return EscalationOut.from_item(service.item(principal, escalation_id, now=now))

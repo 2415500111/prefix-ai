@@ -28,14 +28,18 @@ def _out(item: RequestItem) -> RequestOut:
         patient_name=item.patient_name,
         procedure_name=item.procedure_name,
         scheduled_at=item.appointment.scheduled_at,
+        timezone=item.timezone,
         status=item.status,
         created_at=item.task.created_at,
         decided_at=item.task.completed_at,
+        urgent=bool(item.urgent_reasons),
+        urgent_reasons=list(item.urgent_reasons),
     )
 
 
 @router.get("")
 def list_requests(principal: Reader, session: DbSession, now: Now) -> list[RequestOut]:
+    """Newest first by when the patient asked."""
     return [_out(item) for item in RequestService(session).overview(principal, now=now)]
 
 

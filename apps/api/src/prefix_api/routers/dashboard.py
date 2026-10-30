@@ -19,6 +19,7 @@ from prefix_api.schemas.dashboard import (
     UpcomingOut,
 )
 from prefix_api.services.dashboard import DashboardService, Drawer, UpcomingRow
+from prefix_api.services.staff_notifications import StaffNotificationService
 
 router = APIRouter(
     prefix="/dashboard", tags=["dashboard"], dependencies=[Depends(patient_data_route)]
@@ -29,7 +30,7 @@ Writer = Annotated[StaffPrincipal, Depends(require(Permission.APPOINTMENT_WRITE)
 Queue = Annotated[StaffPrincipal, Depends(require(Permission.TASK_MANAGE))]
 
 
-def _upcoming(row: UpcomingRow) -> UpcomingOut:
+def _upcoming(row: UpcomingRow, *, urgent_unread: bool = False) -> UpcomingOut:
     appointment = row.appointment
     return UpcomingOut(
         appointment_id=appointment.id,
@@ -48,6 +49,7 @@ def _upcoming(row: UpcomingRow) -> UpcomingOut:
         risk_score=row.risk.score,
         risk_level=row.risk.level,
         risk_reasons=[factor.label for factor in row.risk.factors[:4]],
+        urgent_unread=urgent_unread,
     )
 
 
@@ -104,7 +106,8 @@ def upcoming(
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
 ) -> list[UpcomingOut]:
     rows = DashboardService(session).upcoming(principal, now=now, hours=hours, limit=limit)
-    return [_upcoming(row) for row in rows]
+    urgent = StaffNotificationService(session).unread_urgent_patients(principal, now=now)
+    return [_upcoming(row, urgent_unread=row.patient.id in urgent) for row in rows]
 
 
 @router.get("/appointments/{appointment_id}")

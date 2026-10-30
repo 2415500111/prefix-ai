@@ -47,6 +47,7 @@ from prefix_api.domain.enums import (
     MessageChannel,
     ProtocolStatus,
     Role,
+    StaffNotificationKind,
 )
 from prefix_api.domain.errors import AuthenticationError, NotFoundError, PermissionDeniedError
 from prefix_api.domain.permissions import Permission
@@ -65,6 +66,7 @@ from prefix_api.services.messaging.providers import ConsoleProvider
 from prefix_api.services.patient_access import PatientAccessService
 from prefix_api.services.patients import PatientService
 from prefix_api.services.protocols import ProtocolService
+from prefix_api.services.staff_notifications import notify_staff
 from prefix_api.services.translation import PassthroughTranslator
 from prefix_api.services.waitlist import WaitlistService, prep_lead
 
@@ -497,7 +499,8 @@ def _add_sample_escalations(
             )
             if appointment is None:
                 continue
-            create_escalation(
+            red_flag = severity is EscalationSeverity.URGENT
+            escalation = create_escalation(
                 session,
                 principal=system,
                 patient=patient,
@@ -505,9 +508,21 @@ def _add_sample_escalations(
                 severity=severity,
                 summary=summary,
                 purpose="demo_seed",
-                source=EscalationSource.RED_FLAG
-                if severity is EscalationSeverity.URGENT
-                else EscalationSource.OUT_OF_PROTOCOL,
+                source=EscalationSource.RED_FLAG if red_flag else EscalationSource.OUT_OF_PROTOCOL,
+            )
+            notify_staff(
+                session,
+                principal=system,
+                patient=patient,
+                appointment_id=appointment.id,
+                kind=StaffNotificationKind.QUESTION,
+                summary="Asked the assistant about chest pain"
+                if red_flag
+                else "Asked a question the prep plan does not answer",
+                # A little earlier than the answers above, so the bell reads like a morning.
+                now=now - dt.timedelta(minutes=12 * (offset + 1)),
+                red_flag=red_flag,
+                escalation=escalation,
             )
         session.commit()
     return len(samples)
