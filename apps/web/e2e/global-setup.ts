@@ -22,6 +22,7 @@ export default function globalSetup(): void {
     "message",
     "a11y_desktop",
     "a11y_mobile",
+    "bell",
   ]) {
     if (!links[key]?.includes("#token=")) {
       throw new Error(`Fixture did not return a "${key}" magic link`);

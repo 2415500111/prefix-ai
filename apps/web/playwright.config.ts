@@ -31,7 +31,7 @@ export default defineConfig({
       name: "mobile-chrome",
       use: { ...devices["Pixel 7"] },
       testIgnore:
-        /(coordinator|guest|analytics|waitlist|imports|screenshots)\.spec\.ts/,
+        /(coordinator|guest|analytics|waitlist|imports|screenshots|staff-notifications)\.spec\.ts/,
     },
     // Staff screens are desktop-first.
     {
@@ -39,7 +39,7 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       // a11y runs in both projects, so screens are scanned at desktop and phone sizes.
       testMatch:
-        /(coordinator|guest|analytics|waitlist|imports|screenshots|a11y)\.spec\.ts/,
+        /(coordinator|guest|analytics|waitlist|imports|screenshots|staff-notifications|a11y)\.spec\.ts/,
     },
   ],
   webServer: [

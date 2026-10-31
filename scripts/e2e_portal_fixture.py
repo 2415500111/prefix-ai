@@ -1,8 +1,9 @@
 """Create throwaway patient-portal data for the Playwright end-to-end tests.
 
 Each run creates a fresh organization (so runs never interfere) with an approved protocol,
-a patient per test with an appointment two days out, and one magic link each. Prints JSON:
-{"en": "<link>", "hi": "<link>", "reuse": "<link>", ...}.
+a patient per test with an appointment two days out, and one magic link each. A second
+organization holds only the staff-notification test, so other tests running in parallel
+cannot add to its bell. Prints JSON: {"en": "<link>", "hi": "<link>", "reuse": "<link>", ...}.
 
 Development and CI only: refuses to run against production.
 """
@@ -12,7 +13,9 @@ import json
 import secrets
 from decimal import Decimal
 
-from prefix_api.core.config import get_settings
+from sqlalchemy.orm import Session
+
+from prefix_api.core.config import Settings, get_settings
 from prefix_api.core.crypto import configure_crypto
 from prefix_api.core.security import hash_password
 from prefix_api.db.models import Facility, Organization, ProcedureType, User
@@ -71,6 +74,99 @@ PATIENTS = {
     "a11y_desktop": ("Kavya", "en"),
     "a11y_mobile": ("Isha", "en"),
 }
+# In a hospital of its own: raises problems that must reach the top of the staff bell.
+BELL_PATIENTS = {"bell": ("Sunita", "en")}
+
+
+def _hospital(
+    session: Session,
+    settings: Settings,
+    patients: dict[str, tuple[str, str]],
+    now: dt.datetime,
+) -> tuple[dict[str, str], str]:
+    """One organization with a protocol, its patients' bookings and their magic links.
+
+    Returns the links and the coordinator's email."""
+    suffix = secrets.token_hex(4)
+    org = Organization(
+        name=f"E2E Hospital {suffix}",
+        slug=f"e2e-{suffix}",
+        country_code="IN",
+        default_timezone="Asia/Kolkata",
+    )
+    session.add(org)
+    session.flush()
+    facility = Facility(
+        organization_id=org.id,
+        name="E2E Main Campus",
+        timezone="Asia/Kolkata",
+        address="1 Test Road, Bengaluru",
+        maps_url="https://maps.example.com/e2e",
+        phone="+911100000000",
+    )
+    procedure = ProcedureType(
+        organization_id=org.id,
+        code="COLONOSCOPY",
+        name="Colonoscopy",
+        default_duration_minutes=45,
+        or_cost_per_minute=Decimal("150.00"),
+        requires_sedation=True,
+    )
+    users = {
+        role: User(
+            organization_id=org.id,
+            email=f"{role.value.lower()}-{suffix}@e2e.example.com",
+            full_name=f"E2E {role.value.title()}",
+            role=role,
+            # Known only to this throwaway test organisation, so E2E tests can sign in.
+            password_hash=hash_password(STAFF_PASSWORD),
+        )
+        for role in (Role.CLINICIAN, Role.COORDINATOR)
+    }
+    session.add_all([facility, procedure, *users.values()])
+    session.flush()
+    clinician, coordinator = (
+        StaffPrincipal(user_id=u.id, organization_id=org.id, role=u.role) for u in users.values()
+    )
+
+    protocols = ProtocolService(session, get_embedding_provider("local"))
+    protocol = protocols.create(
+        clinician,
+        ProtocolIn(procedure_type_id=procedure.id, name="E2E prep", steps=STEPS),
+    )
+    protocols.approve(clinician, protocol.id, acknowledge_sample=False, now=now)
+
+    scheduled_at = now + dt.timedelta(days=2, hours=-1)
+    links = {}
+    for key, (first_name, language) in patients.items():
+        patient = PatientService(session).create(
+            coordinator,
+            PatientCreate(
+                first_name=first_name,
+                last_name="Test",
+                date_of_birth=dt.date(1980, 1, 1),
+                preferred_language=language,
+                preferred_channel=MessageChannel.PORTAL,
+            ),
+            now=now,
+        )
+        session.flush()
+        AppointmentService(session).create(
+            coordinator,
+            AppointmentCreate(
+                patient_id=patient.id,
+                facility_id=facility.id,
+                procedure_type_id=procedure.id,
+                scheduled_at=scheduled_at,
+                arrival_at=scheduled_at - dt.timedelta(hours=1),
+            ),
+            now=now,
+        )
+        link = PatientAccessService(session, settings).issue_magic_link(
+            coordinator, patient.id, now=now
+        )
+        links[key] = link.url
+    return links, users[Role.COORDINATOR].email
 
 
 def main() -> None:
@@ -82,87 +178,8 @@ def main() -> None:
     engine = create_db_engine(settings)
     try:
         with create_session_factory(engine)() as session:
-            suffix = secrets.token_hex(4)
-            org = Organization(
-                name=f"E2E Hospital {suffix}",
-                slug=f"e2e-{suffix}",
-                country_code="IN",
-                default_timezone="Asia/Kolkata",
-            )
-            session.add(org)
-            session.flush()
-            facility = Facility(
-                organization_id=org.id,
-                name="E2E Main Campus",
-                timezone="Asia/Kolkata",
-                address="1 Test Road, Bengaluru",
-                maps_url="https://maps.example.com/e2e",
-                phone="+911100000000",
-            )
-            procedure = ProcedureType(
-                organization_id=org.id,
-                code="COLONOSCOPY",
-                name="Colonoscopy",
-                default_duration_minutes=45,
-                or_cost_per_minute=Decimal("150.00"),
-                requires_sedation=True,
-            )
-            users = {
-                role: User(
-                    organization_id=org.id,
-                    email=f"{role.value.lower()}-{suffix}@e2e.example.com",
-                    full_name=f"E2E {role.value.title()}",
-                    role=role,
-                    # Known only to this throwaway test organisation, so E2E tests can sign in.
-                    password_hash=hash_password(STAFF_PASSWORD),
-                )
-                for role in (Role.CLINICIAN, Role.COORDINATOR)
-            }
-            session.add_all([facility, procedure, *users.values()])
-            session.flush()
-            coordinator_email = users[Role.COORDINATOR].email
-            clinician, coordinator = (
-                StaffPrincipal(user_id=u.id, organization_id=org.id, role=u.role)
-                for u in users.values()
-            )
-
-            protocols = ProtocolService(session, get_embedding_provider("local"))
-            protocol = protocols.create(
-                clinician,
-                ProtocolIn(procedure_type_id=procedure.id, name="E2E prep", steps=STEPS),
-            )
-            protocols.approve(clinician, protocol.id, acknowledge_sample=False, now=now)
-
-            scheduled_at = now + dt.timedelta(days=2, hours=-1)
-            links = {}
-            for key, (first_name, language) in PATIENTS.items():
-                patient = PatientService(session).create(
-                    coordinator,
-                    PatientCreate(
-                        first_name=first_name,
-                        last_name="Test",
-                        date_of_birth=dt.date(1980, 1, 1),
-                        preferred_language=language,
-                        preferred_channel=MessageChannel.PORTAL,
-                    ),
-                    now=now,
-                )
-                session.flush()
-                AppointmentService(session).create(
-                    coordinator,
-                    AppointmentCreate(
-                        patient_id=patient.id,
-                        facility_id=facility.id,
-                        procedure_type_id=procedure.id,
-                        scheduled_at=scheduled_at,
-                        arrival_at=scheduled_at - dt.timedelta(hours=1),
-                    ),
-                    now=now,
-                )
-                link = PatientAccessService(session, settings).issue_magic_link(
-                    coordinator, patient.id, now=now
-                )
-                links[key] = link.url
+            links, coordinator_email = _hospital(session, settings, PATIENTS, now)
+            bell_links, bell_email = _hospital(session, settings, BELL_PATIENTS, now)
             session.commit()
         # The guest demo hospital, if this database has not got one yet (CI starts empty).
         factory = create_session_factory(engine)
@@ -175,7 +192,9 @@ def main() -> None:
     finally:
         engine.dispose()
     # Last line of output: the test runner parses it (logs may come before it).
+    links.update(bell_links)
     links["staff_email"] = coordinator_email
+    links["bell_staff_email"] = bell_email
     links["staff_password"] = STAFF_PASSWORD
     print(json.dumps(links))
 
