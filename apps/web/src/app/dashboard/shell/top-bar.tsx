@@ -145,7 +145,7 @@ export function TopBar({
   const { group, title } = pageTitle(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   const notifications = useStaffNotifications(canSeeNotifications);
-  const { feed } = notifications;
+  const { summary } = notifications;
 
   return (
     <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b glass px-3 sm:px-5">
@@ -204,24 +204,28 @@ export function TopBar({
         <Popover
           title="Notifications"
           className="w-96"
+          // The list names patients, so it is fetched when someone looks at it.
+          onOpenChange={(open) => {
+            if (open) notifications.loadFeed();
+          }}
           trigger={
             <Button
               variant="ghost"
               size="icon"
               className="relative"
-              aria-label={bellLabel(feed)}
+              aria-label={bellLabel(summary)}
             >
               <Bell aria-hidden />
               <BellCount
-                unread={feed?.unread_count ?? 0}
-                urgent={feed?.urgent_count ?? 0}
+                unread={summary?.unread_count ?? 0}
+                urgent={summary?.urgent_count ?? 0}
               />
             </Button>
           }
         >
           {(close) => (
             <NotificationPanel
-              feed={feed}
+              feed={notifications.feed}
               onOpen={(item) => {
                 close();
                 notifications.open(item);

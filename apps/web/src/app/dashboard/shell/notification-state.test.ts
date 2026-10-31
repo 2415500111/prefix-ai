@@ -34,7 +34,7 @@ describe("staff notification state", () => {
     expect(hasChanged(null, shown)).toBe(true);
   });
 
-  it("announces only new, unread, urgent items", () => {
+  it("announces only unread, urgent items newer than the one the bell knew", () => {
     const old = notification();
     const fresh = notification({ id: "019a0000-0000-7000-8000-000000000002" });
     const calm = notification({
@@ -46,13 +46,12 @@ describe("staff notification state", () => {
       id: "019a0000-0000-7000-8000-000000000004",
       read: true,
     });
+    const next = feed([fresh, calm, seenElsewhere, old]);
 
-    expect(
-      urgentArrivals(
-        new Set([old.id]),
-        feed([fresh, calm, seenElsewhere, old]),
-      ),
-    ).toEqual([fresh]);
+    expect(urgentArrivals(old.id, next)).toEqual([fresh]);
+    expect(urgentArrivals(fresh.id, next)).toEqual([]);
+    // An empty bell before: everything listed is new.
+    expect(urgentArrivals(null, next)).toEqual([fresh, old]);
   });
 
   it("marks items read locally and lowers the counts", () => {

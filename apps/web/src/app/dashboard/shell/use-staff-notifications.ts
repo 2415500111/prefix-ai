@@ -27,57 +27,92 @@ import {
 export const POLL_MS = 15_000;
 
 export interface StaffNotifications {
-  /** Null until the first load (and for roles that cannot see notifications). */
+  /** The bell's totals. Null until the first answer (and for roles that cannot see them). */
+  summary: StaffNotificationSummary | null;
+  /** The list. Null until the bell is opened or something new arrives. */
   feed: StaffNotificationFeed | null;
+  /** Fetches the list, e.g. when the bell is opened. */
+  loadFeed: () => void;
   /** Marks the item read, then opens the patient's sheet on the relevant tab. */
   open: (item: StaffNotification) => void;
   markAllRead: () => void;
 }
 
 /**
- * The bell's live feed. Every 15 seconds (and when the tab comes back into view) it asks for
- * the totals, which hold no patient data; only when they change does it reload the feed and
- * refresh the page, so the Inbox, Requests and Overview show the new item too. Urgent items
- * that arrive while the app is open also raise a toast.
+ * The bell's live state. Every 15 seconds (and when the tab comes back into view) it asks for
+ * the totals, which hold no patient data. The list itself, which names patients, is fetched
+ * only when the bell is opened or when something changes. Then urgent arrivals raise a toast
+ * and the page refreshes, so the Inbox, Requests and Overview show them too.
  */
 export function useStaffNotifications(enabled: boolean): StaffNotifications {
   const router = useRouter();
+  const [summary, setSummary] = useState<StaffNotificationSummary | null>(null);
   const [feed, setFeed] = useState<StaffNotificationFeed | null>(null);
   const shown = useRef<StaffNotificationSummary | null>(null);
-  const seen = useRef<Set<string> | null>(null);
+  const live = useRef(true);
 
-  const show = useCallback((next: StaffNotificationFeed): void => {
+  const show = useCallback((next: StaffNotificationSummary): void => {
     shown.current = next;
-    setFeed(next);
+    setSummary(next);
   }, []);
+
+  const showFeed = useCallback(
+    (next: StaffNotificationFeed | null): void => {
+      if (next === null || !live.current) return;
+      setFeed(next);
+      show(next);
+    },
+    [show],
+  );
 
   const open = useCallback(
     (item: StaffNotification): void => {
       void (async () => {
         if (!item.read) {
-          setFeed((current) => {
-            if (!current) return current;
-            const next = withRead(current, new Set([item.id]));
-            shown.current = next;
-            return next;
-          });
+          setFeed((current) =>
+            current ? withRead(current, new Set([item.id])) : current,
+          );
+          const current = shown.current;
+          if (current) {
+            show({
+              ...current,
+              unread_count: Math.max(0, current.unread_count - 1),
+              urgent_count: Math.max(
+                0,
+                current.urgent_count - (item.urgent ? 1 : 0),
+              ),
+            });
+          }
           // Read first, so the page we open no longer flags the patient.
           await markStaffNotificationsRead([item.id]);
         }
         router.push(notificationHref(item), { scroll: false });
       })();
     },
-    [router],
+    [router, show],
   );
 
-  // Shows a freshly loaded feed. With ``announce``, urgent items new since the last load
-  // raise a toast; the first load of a page never does.
-  const apply = useCallback(
-    (next: StaffNotificationFeed | null, announce: boolean): void => {
-      if (next === null) return;
-      const before = seen.current;
-      if (announce && before !== null) {
-        for (const item of urgentArrivals(before, next)) {
+  const loadFeed = useCallback((): void => {
+    void loadStaffNotifications().then(showFeed);
+  }, [showFeed]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    live.current = true;
+
+    async function check(): Promise<void> {
+      if (document.visibilityState !== "visible") return;
+      const latest = await pollStaffNotifications();
+      const before = shown.current;
+      if (!live.current || latest === null || !hasChanged(before, latest)) {
+        return;
+      }
+      show(latest);
+      const next = await loadStaffNotifications();
+      if (!live.current || next === null) return;
+      // Only what arrived since the last answer is announced, never what was already there.
+      if (before !== null && latest.latest_id !== before.latest_id) {
+        for (const item of urgentArrivals(before.latest_id, next)) {
           toast.error(`Urgent: ${item.patient_name}`, {
             description: [item.summary, item.procedure_name]
               .filter(Boolean)
@@ -87,61 +122,39 @@ export function useStaffNotifications(enabled: boolean): StaffNotifications {
           });
         }
       }
-      seen.current = new Set([
-        ...(before ?? []),
-        ...next.items.map((item) => item.id),
-      ]);
-      show(next);
-    },
-    [open, show],
-  );
-
-  useEffect(() => {
-    if (!enabled) return;
-    let active = true;
-
-    async function check(): Promise<void> {
-      if (document.visibilityState !== "visible") return;
-      const latest = await pollStaffNotifications();
-      if (!active || latest === null || !hasChanged(shown.current, latest)) {
-        return;
-      }
-      const next = await loadStaffNotifications();
-      if (!active) return;
-      apply(next, true);
+      showFeed(next);
       router.refresh();
     }
 
-    void loadStaffNotifications().then((next) => {
-      if (active) apply(next, false);
+    void pollStaffNotifications().then((first) => {
+      if (live.current && first !== null && shown.current === null) {
+        show(first);
+      }
     });
     const timer = window.setInterval(() => void check(), POLL_MS);
     const onVisible = () => void check();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      active = false;
+      live.current = false;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [enabled, apply, router]);
+  }, [enabled, open, router, show, showFeed]);
 
   const markAllRead = useCallback((): void => {
-    setFeed((current) => {
-      if (!current) return current;
-      // The server marks the whole window, which can hold more than the bell lists.
-      const next = {
-        ...withRead(current, new Set(current.items.map((item) => item.id))),
-        unread_count: 0,
-        urgent_count: 0,
-      };
-      shown.current = next;
-      return next;
-    });
+    setFeed((current) =>
+      current
+        ? withRead(current, new Set(current.items.map((item) => item.id)))
+        : current,
+    );
+    const current = shown.current;
+    // The server marks the whole window, which can hold more than the bell lists.
+    if (current) show({ ...current, unread_count: 0, urgent_count: 0 });
     void markAllStaffNotificationsRead().then((result) => {
       if (result.ok) toast.success(result.message);
       else toast.error(result.message);
     });
-  }, []);
+  }, [show]);
 
-  return { feed, open, markAllRead };
+  return { summary, feed, loadFeed, open, markAllRead };
 }

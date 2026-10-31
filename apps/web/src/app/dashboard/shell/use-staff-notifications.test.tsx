@@ -23,6 +23,7 @@ const ARRIVED = notification({
   patient_name: "Ravi Kumar",
   created_at: "2026-10-30T07:40:00Z",
 });
+const QUIET = { latest_id: FIRST.id, unread_count: 1, urgent_count: 0 };
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -45,11 +46,7 @@ describe("live staff notifications", () => {
       configurable: true,
     });
     actions.loadStaffNotifications.mockResolvedValue(feed([FIRST]));
-    actions.pollStaffNotifications.mockResolvedValue({
-      latest_id: FIRST.id,
-      unread_count: 1,
-      urgent_count: 0,
-    });
+    actions.pollStaffNotifications.mockResolvedValue(QUIET);
     actions.markStaffNotificationsRead.mockResolvedValue({
       ok: true,
       message: "Marked as read",
@@ -60,16 +57,27 @@ describe("live staff notifications", () => {
     vi.useRealTimers();
   });
 
-  it("loads once, then only polls the totals while nothing changes", async () => {
+  it("asks only for the totals while nothing changes, never for the list", async () => {
     const { result } = renderHook(() => useStaffNotifications(true));
     await settle();
     await nextPoll();
 
-    expect(result.current.feed?.items).toEqual([FIRST]);
-    expect(actions.loadStaffNotifications).toHaveBeenCalledTimes(1);
-    expect(actions.pollStaffNotifications).toHaveBeenCalledTimes(1);
+    expect(result.current.summary).toEqual(QUIET);
+    expect(result.current.feed).toBeNull();
+    expect(actions.pollStaffNotifications).toHaveBeenCalledTimes(2);
+    expect(actions.loadStaffNotifications).not.toHaveBeenCalled();
     expect(router.refresh).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("fetches the list when the bell is opened", async () => {
+    const { result } = renderHook(() => useStaffNotifications(true));
+    await settle();
+
+    act(() => result.current.loadFeed());
+    await settle();
+
+    expect(result.current.feed?.items).toEqual([FIRST]);
   });
 
   it("puts a new item on top, refreshes the page and toasts when it is urgent", async () => {
@@ -88,7 +96,7 @@ describe("live staff notifications", () => {
       ARRIVED.id,
       FIRST.id,
     ]);
-    expect(result.current.feed?.urgent_count).toBe(1);
+    expect(result.current.summary?.urgent_count).toBe(1);
     expect(router.refresh).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledWith(
@@ -100,24 +108,42 @@ describe("live staff notifications", () => {
   });
 
   it("does not toast the urgent items that were there when the page opened", async () => {
+    actions.pollStaffNotifications.mockResolvedValue({
+      latest_id: ARRIVED.id,
+      unread_count: 1,
+      urgent_count: 1,
+    });
     actions.loadStaffNotifications.mockResolvedValue(feed([ARRIVED]));
 
-    renderHook(() => useStaffNotifications(true));
+    const { result } = renderHook(() => useStaffNotifications(true));
+    await settle();
+    act(() => result.current.loadFeed());
     await settle();
 
+    expect(result.current.summary?.urgent_count).toBe(1);
     expect(toast.error).not.toHaveBeenCalled();
   });
 
   it("marks an item read before opening the patient's sheet on its tab", async () => {
+    actions.pollStaffNotifications.mockResolvedValue({
+      latest_id: ARRIVED.id,
+      unread_count: 1,
+      urgent_count: 1,
+    });
     actions.loadStaffNotifications.mockResolvedValue(feed([ARRIVED]));
     const { result } = renderHook(() => useStaffNotifications(true));
+    await settle();
+    act(() => result.current.loadFeed());
     await settle();
 
     act(() => result.current.open(ARRIVED));
     await settle();
 
     expect(result.current.feed?.items[0]?.read).toBe(true);
-    expect(result.current.feed?.urgent_count).toBe(0);
+    expect(result.current.summary).toMatchObject({
+      unread_count: 0,
+      urgent_count: 0,
+    });
     expect(actions.markStaffNotificationsRead).toHaveBeenCalledWith([
       ARRIVED.id,
     ]);

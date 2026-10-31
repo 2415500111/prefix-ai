@@ -38,14 +38,17 @@ export function hasChanged(
   );
 }
 
-/** Items in ``next`` that were not shown before and still need someone: unread and urgent. */
+/**
+ * Items that arrived after ``previous`` (the newest id the bell knew) and still need someone:
+ * unread and urgent. The list is newest first, so they are the ones above it.
+ */
 export function urgentArrivals(
-  seen: ReadonlySet<string>,
+  previous: string | null,
   next: StaffNotificationFeed,
 ): StaffNotification[] {
-  return next.items.filter(
-    (item) => !seen.has(item.id) && item.urgent && !item.read,
-  );
+  const end = next.items.findIndex((item) => item.id === previous);
+  const arrived = end === -1 ? next.items : next.items.slice(0, end);
+  return arrived.filter((item) => item.urgent && !item.read);
 }
 
 /** The feed with these items read, as the server will have it once it agrees. */

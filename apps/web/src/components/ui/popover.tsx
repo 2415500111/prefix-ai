@@ -14,17 +14,25 @@ export function Popover({
   children,
   align = "end",
   className,
+  onOpenChange,
 }: {
   trigger: ReactElement;
   title?: string;
   children: ReactNode | ((close: () => void) => ReactNode);
   align?: "start" | "center" | "end";
   className?: string;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   return (
-    <BasePopover.Root open={open} onOpenChange={(next) => setOpen(next)}>
+    <BasePopover.Root
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        onOpenChange?.(next);
+      }}
+    >
       <BasePopover.Trigger render={trigger} />
       <AnimatePresence>
         {open ? (

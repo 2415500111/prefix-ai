@@ -162,7 +162,7 @@ Changes, answers and messages are shown for 14 days.
 
 **Urgent, by fixed rules only (no AI).** An item is urgent when a red-flag symptom was detected, the problem is with a step marked critical, or the procedure is within 24 hours. Urgent items have a red left edge, a red icon and a red *Urgent* pill, with the reason in words. Normal items stay neutral. The bell shows the urgent count in red (otherwise the unread count), and an *Urgent only* chip filters the list. The Inbox and Requests pages use the same marks and chip, and an Overview row gets a red accent bar and an *Unread urgent* badge while that patient has an unread urgent item.
 
-**Live.** The bell asks for totals every 15 seconds, and again when the tab comes back into view. When they change it reloads the list: new items slide in at the top, an urgent one raises a toast with *Open*, and the page refreshes so the Inbox, Requests and Overview update too. Opening an item marks it read for that person and opens the patient's sheet on the relevant tab (the prep timeline for a problem, Requests for a reschedule request). An item whose escalation or task is closed counts as read.
+**Live.** The bell asks for totals every 15 seconds, and again when the tab comes back into view. The list, which names patients, is fetched only when the bell is opened or the totals change. When they change: new items slide in at the top, an urgent one raises a toast with *Open*, and the page refreshes so the Inbox, Requests and Overview update too. Opening an item marks it read for that person and opens the patient's sheet on the relevant tab (the prep timeline for a problem, Requests for a reschedule request). An item whose escalation or task is closed counts as read.
 
 ## 8. Other new endpoints
 
