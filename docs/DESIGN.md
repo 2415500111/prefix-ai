@@ -94,7 +94,7 @@ A macOS-style sidebar replaces the top links. It is grouped by the job you are d
 
 On phones the sidebar becomes a sheet from the left, opened from the top bar.
 
-**Top bar** (glass): the page title; patient search (searches the next seven days of procedures by name or procedure and opens the patient's sheet); a notifications popover (open escalations, overdue tasks, new reschedule requests, newest first); and the user menu (name, role, sign out). The demo banner stays, as one slim line above the top bar.
+**Top bar** (glass): the page title; patient search (searches the next seven days of procedures by name or procedure and opens the patient's sheet); a notifications popover (everything patients raised, newest first, with urgent items marked; see section 7); and the user menu (name, role, sign out). The demo banner stays, as one slim line above the top bar.
 
 **Overview:** four summary cards (procedures in the next 72 hours, high-risk count, open escalations, ready percentage), then the patient list. Risk is a coloured pill with the score and the top two reasons. Filters are a segmented control: All, Needs attention, High risk.
 
@@ -154,7 +154,17 @@ Changes, answers and messages are shown for 14 days.
 
 **Text and safety.** The API returns kinds and parameters, not sentences. The portal writes the sentence from a fixed English or Hindi template, so no AI writes notification text (safety rule a). Step titles come from the approved protocol. Staff messages are written by a person. Reading the feed and marking items read are both audited (rule d). Notifications never show red-flag content back to the patient; red flags keep their own emergency reply.
 
-## 7. Other new endpoints
+## 7. Staff notifications (the bell)
+
+**What is listed.** Everything a patient raises: a problem with a prep step (portal or SMS), a question the assistant hands to a nurse, a HELP or free-text reply, and a reschedule request. The list is strictly newest first, by when the patient raised it. Urgency never reorders it.
+
+**Each item** shows the patient's name, the procedure, a one-line summary from a fixed template ("Cannot complete: Clear liquids only"), the date and time in the facility's time zone ("30 Oct, 1:02 pm") and how long ago ("2 min ago"), which updates live. Unread items have a blue dot and a bolder name.
+
+**Urgent, by fixed rules only (no AI).** An item is urgent when a red-flag symptom was detected, the problem is with a step marked critical, or the procedure is within 24 hours. Urgent items have a red left edge, a red icon and a red *Urgent* pill, with the reason in words. Normal items stay neutral. The bell shows the urgent count in red (otherwise the unread count), and an *Urgent only* chip filters the list. The Inbox and Requests pages use the same marks and chip, and an Overview row gets a red accent bar and an *Unread urgent* badge while that patient has an unread urgent item.
+
+**Live.** The bell asks for totals every 15 seconds, and again when the tab comes back into view. When they change it reloads the list: new items slide in at the top, an urgent one raises a toast with *Open*, and the page refreshes so the Inbox, Requests and Overview update too. Opening an item marks it read for that person and opens the patient's sheet on the relevant tab (the prep timeline for a problem, Requests for a reschedule request). An item whose escalation or task is closed counts as read.
+
+## 8. Other new endpoints
 
 Each one exists because a feature above needs it, and each is audited in its service:
 
@@ -164,6 +174,6 @@ Each one exists because a feature above needs it, and each is audited in its ser
 - `POST /requests/{task id}/approve` (with the new time) reschedules the appointment and marks the request approved. `POST /requests/{task id}/decline` marks it declined. A reschedule request stays a `RESCHEDULE` task: open is pending, done is approved, cancelled is declined.
 - The portal's own data gains the hospital name for the header.
 
-## 8. Accessibility
+## 9. Accessibility
 
 WCAG 2.2 AA throughout: the contrast above; visible focus rings; dialogs and sheets trap focus, close on Escape and return focus to their trigger (Base UI primitives); tabs and segmented controls use arrow keys; toasts are live regions; the bottom tab bar uses `aria-current`; and touch targets are at least 44px (48px in the portal). Playwright runs axe on the staff overview and the portal at desktop and phone sizes.

@@ -198,3 +198,11 @@ Implemented in `apps/api/src/prefix_api/db/models/` (migration `0002`). Every te
 - **Rows.** `services/imports.py` runs every row through `PatientService` or `AppointmentService` in its own savepoint. A bad row is reported and undone while the others continue. A dry run rolls the whole import back, and a commit happens only when every row is valid.
 - **Errors.** Reports carry the line, the column and a rule, never a cell value. A committed import writes one `import` audit row, and each matched patient is audited as a read.
 - **Future.** FHIR R4 resources are planned after v1.0.0 (see `docs/INTEGRATIONS.md`).
+
+## 9. Staff notifications
+
+- **Writes.** Wherever a patient raises something, `notify_staff` (`services/staff_notifications.py`) adds a `staff_notification` row in the same transaction: step problems and HELP replies (`services/check_ins.py`, so the portal and SMS behave the same), assistant hand-offs, free-text replies (`services/inbound.py`) and reschedule requests. The row links the escalation or task behind it and records the urgency facts: `red_flag` (the deterministic red-flag check on the patient's note or message) and `critical_step`. Its summary comes from a fixed template and is encrypted.
+- **Order.** `GET /notifications` orders by `created_at DESC, id DESC` in SQL, on the index `ix_staff_notification_newest (organization_id, created_at, id)`. The nurse inbox (`ix_escalation_newest`) and the Requests list (`ix_task_newest`) are ordered the same way. Nothing is re-sorted in application code.
+- **Urgency.** `domain/urgency.py` holds the only rules: red flag, critical step, or a procedure within 24 hours. The feed, the inbox and the Requests list all use them.
+- **Read marks.** `staff_notification_read` stores one row per item and staff member. `POST /notifications/read` and `read-all` write it. Closing the escalation or task behind an item also counts as read.
+- **Polling.** `GET /notifications/summary` returns only totals and the newest id, so it is not a patient-data read. The web app polls it every 15 seconds and fetches the feed only when it changes. Reading the feed is audited per item, and marking read is audited as an update (rule d). `GET /dashboard/upcoming` adds `urgent_unread` per row for the signed-in person.

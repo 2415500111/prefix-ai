@@ -4,7 +4,7 @@ Each phase gets a short plan before work starts. Tick a phase only when lint, ty
 
 ## Resume point
 
-**Status:** Released. Version 1.0.0 shipped on 2026-10-28 (tag `v1.0.0`), with the polish release v1.0.1 on 2026-10-29 (local development guide, `corepack enable` setup, README quick start and screenshots) and the UI redesign v1.2.0 on 2026-10-30 (see the last entry below). All phases 0–12 are merged.
+**Status:** Released. Version 1.0.0 shipped on 2026-10-28 (tag `v1.0.0`), with the polish release v1.0.1 on 2026-10-29 (local development guide, `corepack enable` setup, README quick start and screenshots) the UI redesign v1.2.0 on 2026-10-30, and the staff notifications fix v1.3.0 on 2026-10-31 (see the last entries below). All phases 0–12 are merged.
 **Goal:** demo-ready v1.0.0 as fast as possible, without weakening the safety rules. Speed rules: related tests while developing, full suite once per plan item, Playwright once per phase, pre-commit on changed files, push after each item, wait for CI only before merging into main. About 60–90 minutes per phase. A problem that takes over 15 minutes is logged under "Known issues" and skipped.
 **Known gaps before a real hospital goes live** (details in [docs/COMPLIANCE.md](docs/COMPLIANCE.md)): no retention schedule or erasure job; no subject-access export; no breach-notification workflow; no first-admin command for a real hospital (the seed creates demonstration data only); vendor agreements (Twilio, SMTP, Anthropic) are the hospital's to sign.
 
@@ -198,3 +198,10 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - The staff patient sheet now shows each step's state as the patient sees it, so a step past its time reads "Due now" or "Overdue" even when no reminder went out.
   - Found while testing: toasts were hidden from screen readers while a modal sheet was open, and the risk score text in the amber pill was below 4.5:1. Both fixed.
   - The pre-commit Prettier hook now runs through `node`: on Windows the pnpm shim could not pass the `(app)` route-group paths.
+- [x] **v1.3 — Staff notifications fix** · 2026-10-31 · `v1.3.0` · branch `fix-staff-notifications`
+  A problem a patient raised did not reach the top of the staff bell. A problem with an ordinary step opened only a call task, so the bell never showed it. The bell also sorted tasks by due time, and the inbox sorted by severity. Now everything a patient raises writes a `staff_notification` row (migration 0010). The bell, the nurse inbox and the Requests page are ordered newest first in SQL, each on its own index. Items show the patient, procedure, a short summary and the time in the facility's zone with a live "min ago". Fixed rules mark items urgent: a red flag, a critical step, or a procedure within 24 hours. Urgent items get red styling, an *Urgent only* chip and the count on the bell. The bell polls every 15 seconds and toasts urgent arrivals. Overview rows get a red accent while an urgent item is unread.
+  Verified: see the merge commit for the final counts and the CI run.
+  **Notes:**
+  - Read marks are per person. Closing the escalation or task behind an item counts as read for everyone.
+  - The polled summary holds only totals and an id, so it is not audited. The feed and read marks are audited per item.
+  - Red-flag words in a problem note, a reschedule note or a free-text SMS now mark that notification urgent. The escalation rules themselves are unchanged.
