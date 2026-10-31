@@ -154,6 +154,23 @@ describe("patient sheet logic", () => {
 });
 
 describe("patient sheet", () => {
+  it("opens on the tab a link asks for, e.g. the prep timeline for a problem", async () => {
+    render(
+      <PatientSheet
+        drawer={drawer()}
+        filter="all"
+        role="COORDINATOR"
+        tab="timeline"
+      />,
+    );
+
+    await screen.findByRole("dialog", { name: "Asha Patel" });
+    expect(screen.getByRole("tab", { name: "Prep timeline" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
   it("opens with the patient, tabs and one action bar", async () => {
     render(<PatientSheet drawer={drawer()} filter="all" role="COORDINATOR" />);
 

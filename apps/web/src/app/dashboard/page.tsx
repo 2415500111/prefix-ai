@@ -11,6 +11,7 @@ import {
 } from "@/lib/server/dal";
 
 import { PatientSheet } from "./coordinator/patient-sheet";
+import { readSheetTab } from "./coordinator/sheet-tabs";
 import { SummaryCards, summarize } from "./coordinator/summary-cards";
 import {
   type Filter,
@@ -37,6 +38,7 @@ async function Board({
   const filter = readFilter(params.filter);
   const appointment =
     typeof params.appointment === "string" ? params.appointment : undefined;
+  const tab = readSheetTab(params.tab);
 
   const [rows, drawer, user, badges] = await Promise.all([
     listUpcoming(72),
@@ -80,10 +82,12 @@ async function Board({
       </section>
       {drawer ? (
         <PatientSheet
-          key={drawer.appointment.appointment_id}
+          // A link to another tab of the same patient opens the sheet afresh on that tab.
+          key={`${drawer.appointment.appointment_id}:${tab}`}
           drawer={drawer}
           filter={filter}
           role={user.role}
+          tab={tab}
         />
       ) : null}
     </>

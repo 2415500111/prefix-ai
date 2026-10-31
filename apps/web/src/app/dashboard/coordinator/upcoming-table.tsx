@@ -1,6 +1,6 @@
 import type { UpcomingRow } from "@prefix/shared";
 import { cn } from "cn";
-import { ChevronRight, ListChecks, ShieldAlert } from "lucide-react";
+import { BellRing, ChevronRight, ListChecks, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
 import { ProgressBar, StaggerItem } from "@/components/ui/animated";
@@ -120,6 +120,13 @@ export function UpcomingTable({
                 selected && "ring-2 ring-primary",
               )}
             >
+              {row.urgent_unread ? (
+                <span
+                  aria-hidden
+                  data-testid="urgent-accent"
+                  className="absolute inset-y-0 left-0 w-1.5 rounded-l-2xl bg-urgent"
+                />
+              ) : null}
               <time
                 dateTime={row.scheduled_at}
                 className="w-28 shrink-0 text-sm text-muted-foreground"
@@ -148,6 +155,12 @@ export function UpcomingTable({
                 ) : null}
               </div>
               <div className="flex w-36 flex-wrap gap-1.5">
+                {row.urgent_unread ? (
+                  <Badge variant="urgent">
+                    <BellRing aria-hidden />
+                    Unread urgent
+                  </Badge>
+                ) : null}
                 {row.open_escalations > 0 ? (
                   <Badge variant="urgent">
                     <ShieldAlert aria-hidden />
@@ -160,7 +173,9 @@ export function UpcomingTable({
                     {plural(row.open_tasks, "task", "tasks")}
                   </Badge>
                 ) : null}
-                {row.open_escalations === 0 && row.open_tasks === 0 ? (
+                {row.open_escalations === 0 &&
+                row.open_tasks === 0 &&
+                !row.urgent_unread ? (
                   <span className="text-xs text-muted-foreground">
                     Nothing open
                   </span>

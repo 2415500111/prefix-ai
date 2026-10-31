@@ -217,6 +217,9 @@ export interface EscalationItem {
   patient_name: string;
   appointment_id: string | null;
   procedure_name: string | null;
+  scheduled_at: string | null;
+  /** The facility's time zone; null when the escalation has no booking. */
+  timezone: string | null;
   source: string;
   severity: EscalationSeverity;
   status: EscalationStatus;
@@ -225,6 +228,47 @@ export interface EscalationItem {
   acknowledged_at: string | null;
   resolved_at: string | null;
   resolution_note: string | null;
+  urgent: boolean;
+  urgent_reasons: UrgentReason[];
+}
+
+/* Staff notifications (see apps/api/src/prefix_api/schemas/staff_notifications.py). */
+
+/** Fixed rules, never an LLM (apps/api/src/prefix_api/domain/urgency.py). */
+export type UrgentReason = "red_flag" | "critical_step" | "procedure_soon";
+
+export type StaffNotificationKind =
+  "PROBLEM" | "QUESTION" | "HELP" | "MESSAGE" | "RESCHEDULE";
+
+export interface StaffNotification {
+  id: string;
+  kind: StaffNotificationKind;
+  /** A short line from a fixed template, e.g. "Cannot complete: Clear liquids". */
+  summary: string;
+  patient_id: string;
+  patient_name: string;
+  appointment_id: string | null;
+  procedure_name: string | null;
+  scheduled_at: string | null;
+  timezone: string;
+  /** When the patient raised it. Lists are newest first by this. */
+  created_at: string;
+  urgent: boolean;
+  urgent_reasons: UrgentReason[];
+  /** False once the escalation or task behind it is closed. */
+  open: boolean;
+  read: boolean;
+}
+
+/** What the bell polls: totals and the newest id, no patient data. */
+export interface StaffNotificationSummary {
+  latest_id: string | null;
+  unread_count: number;
+  urgent_count: number;
+}
+
+export interface StaffNotificationFeed extends StaffNotificationSummary {
+  items: StaffNotification[];
 }
 
 /* Guest demo (see apps/api/src/prefix_api/schemas/demo.py). */
@@ -261,6 +305,8 @@ export interface UpcomingRow {
   risk_level: "LOW" | "MEDIUM" | "HIGH";
   /** The reasons behind the risk, strongest first, in plain words. */
   risk_reasons: string[];
+  /** The patient raised something urgent that this staff member has not read. */
+  urgent_unread?: boolean;
 }
 
 export interface DrawerStep {
@@ -318,9 +364,13 @@ export interface RescheduleRequest {
   patient_name: string;
   procedure_name: string;
   scheduled_at: string;
+  /** The facility's time zone. */
+  timezone: string;
   status: RequestStatus;
   created_at: string;
   decided_at: string | null;
+  urgent: boolean;
+  urgent_reasons: UrgentReason[];
 }
 
 export interface Badges {

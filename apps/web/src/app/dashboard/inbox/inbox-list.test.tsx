@@ -16,6 +16,8 @@ function item(overrides: Partial<EscalationItem>): EscalationItem {
     patient_name: "Asha Patel",
     appointment_id: null,
     procedure_name: "Colonoscopy",
+    scheduled_at: "2026-11-02T04:30:00Z",
+    timezone: "Asia/Kolkata",
     source: "RED_FLAG",
     severity: "URGENT",
     status: "OPEN",
@@ -24,6 +26,8 @@ function item(overrides: Partial<EscalationItem>): EscalationItem {
     acknowledged_at: null,
     resolved_at: null,
     resolution_note: null,
+    urgent: true,
+    urgent_reasons: ["red_flag"],
     ...overrides,
   };
 }
@@ -37,14 +41,43 @@ describe("nurse inbox", () => {
     ).toBeInTheDocument();
   });
 
-  it("labels severity in words and shows the patient and procedure", () => {
+  it("marks urgency in words and shows the patient, procedure and time raised", () => {
     render(<InboxList items={[item({})]} />);
 
-    expect(screen.getByText("Urgent")).toBeInTheDocument();
+    const card = screen.getByRole("listitem");
+    expect(within(card).getByText("Urgent")).toBeInTheDocument();
+    expect(within(card).getByText("Red flag")).toBeInTheDocument();
+    expect(card).toHaveClass("border-l-urgent");
     expect(
       screen.getByRole("heading", { name: "Asha Patel · Colonoscopy" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/chest pain/)).toBeInTheDocument();
+    // In the facility's time zone (IST), with how long ago.
+    expect(within(card).getByText("28 Oct, 11:30 am")).toBeInTheDocument();
+    expect(within(card).getByText(/ago$/)).toBeInTheDocument();
+  });
+
+  it("keeps normal items neutral and in the order given (newest first)", () => {
+    render(
+      <InboxList
+        items={[
+          item({
+            id: "3d1f0c2e-1111-4a2b-9c3d-000000000003",
+            patient_name: "Neha Rao",
+            created_at: "2026-10-28T06:02:00Z",
+            urgent: false,
+            urgent_reasons: [],
+          }),
+          item({ created_at: "2026-10-28T06:00:00Z" }),
+        ]}
+      />,
+    );
+
+    const [newer, older] = screen.getAllByRole("listitem");
+    expect(within(newer).getByRole("heading")).toHaveTextContent("Neha Rao");
+    expect(within(newer).queryByText("Urgent")).not.toBeInTheDocument();
+    expect(newer).not.toHaveClass("border-l-urgent");
+    expect(within(older).getByText("Urgent")).toBeInTheDocument();
   });
 
   it("offers acknowledge only while waiting, and a required resolution note", () => {
