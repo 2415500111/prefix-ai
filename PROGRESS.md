@@ -200,7 +200,7 @@ Tags follow CLAUDE.md's `v0.<n>.0` pattern for each phase's own number, so they 
   - The pre-commit Prettier hook now runs through `node`: on Windows the pnpm shim could not pass the `(app)` route-group paths.
 - [x] **v1.3 — Staff notifications fix** · 2026-10-31 · `v1.3.0` · branch `fix-staff-notifications`
   A problem a patient raised did not reach the top of the staff bell. A problem with an ordinary step opened only a call task, so the bell never showed it. The bell also sorted tasks by due time, and the inbox sorted by severity. Now everything a patient raises writes a `staff_notification` row (migration 0010). The bell, the nurse inbox and the Requests page are ordered newest first in SQL, each on its own index. Items show the patient, procedure, a short summary and the time in the facility's zone with a live "min ago". Fixed rules mark items urgent: a red flag, a critical step, or a procedure within 24 hours. Urgent items get red styling, an *Urgent only* chip and the count on the bell. The bell polls every 15 seconds and toasts urgent arrivals. Overview rows get a red accent while an urgent item is unread.
-  Verified: see the merge commit for the final counts and the CI run.
+  Verified: 526 pytest (21 new staff-notification tests), 136 Vitest, 17 Playwright (a new spec: a problem raised in the portal reaches the top of the staff bell, with axe scans), ruff, mypy, ESLint, tsc and Prettier clean. CI result is recorded at merge.
   **Notes:**
   - Read marks are per person. Closing the escalation or task behind an item counts as read for everyone.
   - The polled summary holds only totals and an id, so it is not audited. The feed and read marks are audited per item.
