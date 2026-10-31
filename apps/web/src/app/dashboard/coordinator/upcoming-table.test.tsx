@@ -70,6 +70,27 @@ describe("upcoming table", () => {
     );
   });
 
+  it("gives a patient with an unread urgent item a red accent and says so in words", () => {
+    render(
+      <UpcomingTable
+        rows={[
+          row({ urgent_unread: true }),
+          row({
+            appointment_id: "3d1f0c2e-1111-4a2b-9c3d-000000000009",
+            patient_name: "Ravi Kumar",
+          }),
+        ]}
+        filter="all"
+      />,
+    );
+
+    const [flagged, calm] = screen.getAllByRole("listitem");
+    expect(flagged.querySelector("[data-testid=urgent-accent]")).not.toBeNull();
+    expect(flagged).toHaveTextContent("Unread urgent");
+    expect(calm.querySelector("[data-testid=urgent-accent]")).toBeNull();
+    expect(calm).not.toHaveTextContent("Unread urgent");
+  });
+
   it("names open escalations and tasks in words", () => {
     render(
       <UpcomingTable

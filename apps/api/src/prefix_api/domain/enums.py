@@ -144,6 +144,16 @@ class EscalationStatus(StrEnum):
     RESOLVED = "RESOLVED"
 
 
+class StaffNotificationKind(StrEnum):
+    """What a patient raised, for the staff notification feed."""
+
+    PROBLEM = "PROBLEM"  # cannot complete a prep step
+    QUESTION = "QUESTION"  # an assistant question that needs a nurse (or a red flag)
+    HELP = "HELP"  # replied HELP to a check-in
+    MESSAGE = "MESSAGE"  # free text the system does not interpret
+    RESCHEDULE = "RESCHEDULE"  # asked to move the procedure
+
+
 class TaskStatus(StrEnum):
     OPEN = "OPEN"
     IN_PROGRESS = "IN_PROGRESS"

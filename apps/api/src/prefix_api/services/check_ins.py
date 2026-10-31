@@ -2,6 +2,8 @@
 
 YES confirms the step. NO creates a call task for the coordinators and, on a critical step,
 a HIGH escalation and an AT_RISK appointment. HELP puts a nurse in front of the patient.
+NO and HELP also appear in the staff notifications; red-flag words in the patient's note make
+that item urgent.
 """
 
 import datetime as dt
@@ -25,11 +27,14 @@ from prefix_api.domain.enums import (
     CheckInStatus,
     EscalationSeverity,
     EscalationSource,
+    StaffNotificationKind,
     TaskType,
     TimelineEventStatus,
 )
 from prefix_api.domain.principal import Principal
+from prefix_api.domain.red_flags import describe, detect_red_flags
 from prefix_api.services.audit import record_audit
+from prefix_api.services.staff_notifications import notify_staff
 
 TASK_DUE = dt.timedelta(hours=2)
 
@@ -61,7 +66,8 @@ def record_answer(
         event.confirmed_at = now
     elif response is CheckInResponse.NO:
         escalation = None
-        if step is not None and step.is_critical and appointment is not None:
+        critical = step is not None and step.is_critical
+        if critical and appointment is not None:
             escalation = create_escalation(
                 session,
                 principal=principal,
@@ -75,7 +81,7 @@ def record_answer(
             )
             if appointment.status is not AppointmentStatus.CANCELLED:
                 appointment.status = AppointmentStatus.AT_RISK
-        create_task(
+        task = create_task(
             session,
             patient=patient,
             appointment_id=check_in.appointment_id,
@@ -83,6 +89,21 @@ def record_answer(
             title=f"Patient cannot complete: {label}",
             now=now,
             escalation_id=escalation.id if escalation else None,
+        )
+        flags = detect_red_flags(note) if note else frozenset()
+        notify_staff(
+            session,
+            principal=principal,
+            patient=patient,
+            appointment_id=check_in.appointment_id,
+            kind=StaffNotificationKind.PROBLEM,
+            summary=f"Cannot complete: {label}"
+            + (f". Mentions {describe(flags)}" if flags else ""),
+            now=now,
+            red_flag=bool(flags),
+            critical_step=critical,
+            escalation=escalation,
+            task=task,
         )
     elif response is CheckInResponse.HELP and appointment is not None:
         escalation = create_escalation(
@@ -94,7 +115,7 @@ def record_answer(
             summary=_with_note(f"Patient asked for help ({via})", note),
             purpose=purpose,
         )
-        create_task(
+        task = create_task(
             session,
             patient=patient,
             appointment_id=appointment.id,
@@ -102,6 +123,20 @@ def record_answer(
             title="Patient asked for help",
             now=now,
             escalation_id=escalation.id,
+        )
+        flags = detect_red_flags(note) if note else frozenset()
+        notify_staff(
+            session,
+            principal=principal,
+            patient=patient,
+            appointment_id=appointment.id,
+            kind=StaffNotificationKind.HELP,
+            summary=f"Asked for help with: {label}"
+            + (f". Mentions {describe(flags)}" if flags else ""),
+            now=now,
+            red_flag=bool(flags),
+            escalation=escalation,
+            task=task,
         )
 
     record_audit(

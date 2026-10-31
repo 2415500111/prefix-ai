@@ -12,6 +12,8 @@ from prefix_api.db.models.operations import (
     BackfillOffer,
     Escalation,
     RiskScore,
+    StaffNotification,
+    StaffNotificationRead,
     Task,
     WaitlistEntry,
 )
@@ -41,6 +43,8 @@ __all__ = [
     "ProcedureType",
     "RefreshToken",
     "RiskScore",
+    "StaffNotification",
+    "StaffNotificationRead",
     "Task",
     "User",
     "WaitlistEntry",

@@ -38,6 +38,8 @@ class UpcomingOut(BaseModel):
     risk_level: RiskLevel
     # The reasons behind the score, strongest first, in plain words.
     risk_reasons: list[str]
+    # The patient raised something urgent that this staff member has not read yet.
+    urgent_unread: bool = False
 
 
 class DrawerStepOut(BaseModel):

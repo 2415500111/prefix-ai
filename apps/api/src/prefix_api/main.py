@@ -38,6 +38,7 @@ from prefix_api.routers import (
     patients,
     protocols,
     requests,
+    staff_notifications,
     tasks,
     waitlist,
     webhooks,
@@ -124,5 +125,6 @@ def create_app(
     app.include_router(imports.router)
     app.include_router(requests.router)
     app.include_router(badges.router)
+    app.include_router(staff_notifications.router)
     app.include_router(webhooks.router)
     return app

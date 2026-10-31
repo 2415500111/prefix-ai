@@ -4,15 +4,13 @@ import type { Badges, Me } from "@prefix/shared";
 import { cn } from "cn";
 import {
   Bell,
-  CalendarClock,
   ChevronRight,
   CircleUserRound,
   LogOut,
   Menu,
   Search,
-  ShieldAlert,
-  ListChecks,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -24,14 +22,14 @@ import { Popover } from "@/components/ui/popover";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import {
-  loadNotifications,
-  type PatientHit,
-  searchPatients,
-  type StaffNotification,
-} from "./actions";
+import { spring } from "@/lib/motion";
+
+import { type PatientHit, searchPatients } from "./actions";
 import { pageTitle } from "./nav";
+import { NotificationPanel } from "./notification-panel";
+import { bellLabel } from "./notification-state";
 import { Brand, SidebarNav } from "./sidebar";
+import { useStaffNotifications } from "./use-staff-notifications";
 
 const WHEN = new Intl.DateTimeFormat("en-IN", {
   weekday: "short",
@@ -106,81 +104,29 @@ function PatientSearch({ close }: { close: () => void }) {
   );
 }
 
-const KIND_ICON = {
-  escalation: ShieldAlert,
-  task: ListChecks,
-  request: CalendarClock,
-} as const;
-const TONE_CLASS = {
-  urgent: "bg-urgent-soft text-urgent-foreground",
-  attention: "bg-attention-soft text-attention-foreground",
-  info: "bg-primary-soft text-primary-soft-foreground",
-} as const;
-
-function NotificationList({ close }: { close: () => void }) {
-  const [items, setItems] = useState<StaffNotification[] | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadNotifications().then((loaded) => {
-      if (live) setItems(loaded);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  if (items === null) {
-    return (
-      <div
-        role="status"
-        aria-label="Loading notifications"
-        className="flex flex-col gap-2 p-1"
-      >
-        <Skeleton className="h-12" />
-        <Skeleton className="h-12" />
-        <Skeleton className="h-12" />
-      </div>
-    );
-  }
-  if (items.length === 0) {
-    return (
-      <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-        Nothing needs you right now.
-      </p>
-    );
-  }
+/** The count on the bell: urgent items in red, otherwise the unread total. */
+function BellCount({ unread, urgent }: { unread: number; urgent: number }) {
+  const count = urgent > 0 ? urgent : unread;
   return (
-    <ul className="flex max-h-96 flex-col overflow-y-auto">
-      {items.map((item) => {
-        const Icon = KIND_ICON[item.kind];
-        return (
-          <li key={item.id}>
-            <Link
-              href={item.href}
-              onClick={close}
-              className="flex pressable items-start gap-3 rounded-lg px-2 py-2 hover:bg-muted"
-            >
-              <span
-                className={cn(
-                  "grid size-8 shrink-0 place-items-center rounded-full",
-                  TONE_CLASS[item.tone],
-                )}
-              >
-                <Icon className="size-4" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
-                  {item.title}
-                </span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {item.detail}
-                </span>
-              </span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+    <AnimatePresence initial={false}>
+      {count > 0 ? (
+        <motion.span
+          key={`${urgent > 0 ? "urgent" : "unread"}-${count}`}
+          aria-hidden
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1, transition: spring.snappy }}
+          exit={{ scale: 0.5, opacity: 0 }}
+          className={cn(
+            "absolute -top-0.5 -right-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full px-1 text-[11px] leading-none font-semibold tabular-nums ring-2 ring-card",
+            urgent > 0
+              ? "bg-urgent text-white dark:text-[#1a0606]"
+              : "bg-primary text-primary-foreground",
+          )}
+        >
+          {count > 99 ? "99+" : count}
+        </motion.span>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -188,15 +134,18 @@ export function TopBar({
   user,
   badges,
   canResetDemo,
+  canSeeNotifications,
 }: {
   user: Me;
   badges: Badges;
   canResetDemo: boolean;
+  canSeeNotifications: boolean;
 }) {
   const pathname = usePathname();
   const { group, title } = pageTitle(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
-  const attention = badges.open_escalations + badges.pending_requests;
+  const notifications = useStaffNotifications(canSeeNotifications);
+  const { summary } = notifications;
 
   return (
     <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b glass px-3 sm:px-5">
@@ -251,28 +200,41 @@ export function TopBar({
         {(close) => <PatientSearch close={close} />}
       </Popover>
 
-      <Popover
-        title="Needs attention"
-        trigger={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative"
-            aria-label={
-              attention > 0
-                ? `Notifications, ${attention} need attention`
-                : "Notifications"
-            }
-          >
-            <Bell aria-hidden />
-            {attention > 0 ? (
-              <span className="absolute top-1 right-1 size-2.5 rounded-full bg-urgent ring-2 ring-card" />
-            ) : null}
-          </Button>
-        }
-      >
-        {(close) => <NotificationList close={close} />}
-      </Popover>
+      {canSeeNotifications ? (
+        <Popover
+          title="Notifications"
+          className="w-96"
+          // The list names patients, so it is fetched when someone looks at it.
+          onOpenChange={(open) => {
+            if (open) notifications.loadFeed();
+          }}
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              aria-label={bellLabel(summary)}
+            >
+              <Bell aria-hidden />
+              <BellCount
+                unread={summary?.unread_count ?? 0}
+                urgent={summary?.urgent_count ?? 0}
+              />
+            </Button>
+          }
+        >
+          {(close) => (
+            <NotificationPanel
+              feed={notifications.feed}
+              onOpen={(item) => {
+                close();
+                notifications.open(item);
+              }}
+              onMarkAllRead={notifications.markAllRead}
+            />
+          )}
+        </Popover>
+      ) : null}
 
       <Popover
         className="w-64"

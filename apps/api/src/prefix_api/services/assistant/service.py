@@ -33,13 +33,14 @@ from prefix_api.domain.enums import (
     AuditAction,
     EscalationSeverity,
     EscalationSource,
+    StaffNotificationKind,
     TaskType,
     TimelineEventStatus,
 )
 from prefix_api.domain.errors import AuthenticationError, ConflictError, NotFoundError
 from prefix_api.domain.grounding import describe_offset, describe_time_to, ungrounded_numbers
 from prefix_api.domain.principal import PatientPrincipal
-from prefix_api.domain.red_flags import detect_red_flags
+from prefix_api.domain.red_flags import describe, detect_red_flags
 from prefix_api.services.assistant.llm import (
     PROMPT_VERSION,
     AssistantLLM,
@@ -49,6 +50,7 @@ from prefix_api.services.assistant.llm import (
 from prefix_api.services.audit import record_audit
 from prefix_api.services.check_ins import create_escalation, create_task
 from prefix_api.services.embeddings import EmbeddingProvider
+from prefix_api.services.staff_notifications import notify_staff
 from prefix_api.services.step_translations import base_language, cached_translations
 
 PURPOSE = "patient_assistant"
@@ -336,7 +338,7 @@ class AssistantService:
             summary=f"{reason}\nPatient asked: {question}",
             purpose=PURPOSE,
         )
-        create_task(
+        task = create_task(
             self._session,
             patient=patient,
             appointment_id=appointment.id,
@@ -347,6 +349,25 @@ class AssistantService:
             now=now,
             escalation_id=escalation.id,
             due_in=URGENT_CALL_WITHIN if red_flag else dt.timedelta(hours=2),
+        )
+        flags = detect_red_flags(question)
+        if flags:
+            summary = f"Asked the assistant about {describe(flags)}"
+        elif red_flag:
+            summary = "Possible red flag in a question to the assistant"
+        else:
+            summary = "Asked a question the prep plan does not answer"
+        notify_staff(
+            self._session,
+            principal=principal,
+            patient=patient,
+            appointment_id=appointment.id,
+            kind=StaffNotificationKind.QUESTION,
+            summary=summary,
+            now=now,
+            red_flag=red_flag or bool(flags),
+            escalation=escalation,
+            task=task,
         )
         if red_flag and appointment.status is not AppointmentStatus.CANCELLED:
             appointment.status = AppointmentStatus.AT_RISK

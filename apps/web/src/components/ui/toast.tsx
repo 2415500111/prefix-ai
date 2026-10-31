@@ -13,12 +13,25 @@ import { exit, spring } from "@/lib/motion";
  */
 export type ToastTone = "success" | "error" | "info";
 
+/** A button on the toast, e.g. "Open" on an urgent notification. Pressing it dismisses it. */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+interface ToastOptions {
+  description?: string;
+  sticky?: boolean;
+  action?: ToastAction;
+}
+
 interface ToastItem {
   id: number;
   tone: ToastTone;
   title: string;
   description?: string;
   sticky: boolean;
+  action?: ToastAction;
 }
 
 const VISIBLE = 3;
@@ -30,11 +43,7 @@ function emit(): void {
   for (const listener of listeners) listener();
 }
 
-function push(
-  tone: ToastTone,
-  title: string,
-  options?: { description?: string; sticky?: boolean },
-): number {
+function push(tone: ToastTone, title: string, options?: ToastOptions): number {
   const id = nextId++;
   items = [
     {
@@ -43,6 +52,7 @@ function push(
       title,
       description: options?.description,
       sticky: options?.sticky ?? false,
+      action: options?.action,
     },
     ...items,
   ].slice(0, VISIBLE);
@@ -58,12 +68,9 @@ export function dismissToast(id: number): void {
 export const toast = {
   success: (title: string, options?: { description?: string }) =>
     push("success", title, options),
-  error: (
-    title: string,
-    options?: { description?: string; sticky?: boolean },
-  ) => push("error", title, options),
-  info: (title: string, options?: { description?: string; sticky?: boolean }) =>
-    push("info", title, options),
+  error: (title: string, options?: ToastOptions) =>
+    push("error", title, options),
+  info: (title: string, options?: ToastOptions) => push("info", title, options),
 };
 
 function subscribe(listener: () => void): () => void {
@@ -118,6 +125,18 @@ function ToastCard({ item }: { item: ToastItem }) {
           <p className="text-sm text-muted-foreground">{item.description}</p>
         ) : null}
       </div>
+      {item.action ? (
+        <button
+          type="button"
+          onClick={() => {
+            dismissToast(item.id);
+            item.action?.onClick();
+          }}
+          className="shrink-0 pressable self-center rounded-full bg-primary-soft px-3 py-1 text-sm font-semibold text-primary-soft-foreground hover:bg-primary-soft/80"
+        >
+          {item.action.label}
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => dismissToast(item.id)}

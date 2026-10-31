@@ -1,12 +1,19 @@
 "use server";
 
+import type {
+  StaffNotificationFeed,
+  StaffNotificationSummary,
+} from "@prefix/shared";
+
 import { ApiError } from "@/lib/server/api";
 import {
-  listEscalations,
-  listRequests,
-  listTaskQueue,
+  getStaffNotifications,
+  getStaffNotificationSummary,
   listUpcoming,
 } from "@/lib/server/dal";
+
+import { type ActionResult, refused } from "../action-result";
+import { performAction } from "../form-action";
 
 export interface PatientHit {
   appointment_id: string;
@@ -45,71 +52,50 @@ export async function searchPatients(query: string): Promise<PatientHit[]> {
     }));
 }
 
-export interface StaffNotification {
-  id: string;
-  kind: "escalation" | "task" | "request";
-  tone: "urgent" | "attention" | "info";
-  title: string;
-  detail: string;
-  href: string;
-  at: string;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_IDS = 100;
+
+/**
+ * The bell's feed, newest first as the API orders it. Null for a role that cannot see it, so
+ * the bell stops asking.
+ */
+export async function loadStaffNotifications(): Promise<StaffNotificationFeed | null> {
+  return orNull(() => getStaffNotifications());
 }
 
-async function orEmpty<T>(load: () => Promise<T[]>): Promise<T[]> {
+/** Totals and the newest id: cheap enough to ask every 15 seconds, and holds no patient data. */
+export async function pollStaffNotifications(): Promise<StaffNotificationSummary | null> {
+  return orNull(() => getStaffNotificationSummary());
+}
+
+/** Mark items read for this person. The pages refresh, so the Overview's red bars follow. */
+export async function markStaffNotificationsRead(
+  ids: string[],
+): Promise<ActionResult> {
+  const valid = ids.filter((id) => UUID.test(id));
+  if (valid.length === 0 || valid.length > MAX_IDS) {
+    return refused("That notification no longer exists.");
+  }
+  return performAction(
+    "/notifications/read",
+    { method: "POST", body: { ids: valid } },
+    "Marked as read",
+  );
+}
+
+export async function markAllStaffNotificationsRead(): Promise<ActionResult> {
+  return performAction(
+    "/notifications/read-all",
+    { method: "POST" },
+    "All notifications marked as read",
+  );
+}
+
+async function orNull<T>(load: () => Promise<T>): Promise<T | null> {
   try {
     return await load();
   } catch (error) {
-    // A role that cannot see one of these lists simply gets no items from it.
-    if (error instanceof ApiError && error.status === 403) return [];
+    if (error instanceof ApiError && error.status === 403) return null;
     throw error;
   }
-}
-
-/** What needs a person's attention: open escalations, overdue tasks, pending requests. */
-export async function loadNotifications(): Promise<StaffNotification[]> {
-  const [escalations, tasks, requests] = await Promise.all([
-    orEmpty(() => listEscalations("open")),
-    orEmpty(() => listTaskQueue()),
-    orEmpty(() => listRequests()),
-  ]);
-  const items: StaffNotification[] = [
-    ...escalations.map((item) => ({
-      id: `escalation-${item.id}`,
-      kind: "escalation" as const,
-      tone:
-        item.severity === "URGENT" || item.severity === "HIGH"
-          ? ("urgent" as const)
-          : ("attention" as const),
-      title: `Escalation: ${item.patient_name}`,
-      detail: item.procedure_name ?? "Needs a nurse",
-      href: "/dashboard/inbox",
-      at: item.created_at,
-    })),
-    ...tasks
-      .filter((task) => task.sla !== "on_time" && task.type !== "RESCHEDULE")
-      .map((task) => ({
-        id: `task-${task.id}`,
-        kind: "task" as const,
-        tone:
-          task.sla === "overdue" ? ("urgent" as const) : ("attention" as const),
-        title: task.title,
-        detail: `${task.patient_name} · ${task.sla === "overdue" ? "Overdue" : "Due soon"}`,
-        href: task.appointment_id
-          ? `/dashboard?appointment=${task.appointment_id}`
-          : "/dashboard/tasks",
-        at: task.due_at ?? new Date(0).toISOString(),
-      })),
-    ...requests
-      .filter((request) => request.status === "pending")
-      .map((request) => ({
-        id: `request-${request.id}`,
-        kind: "request" as const,
-        tone: "info" as const,
-        title: `Reschedule request: ${request.patient_name}`,
-        detail: request.procedure_name,
-        href: "/dashboard/requests",
-        at: request.created_at,
-      })),
-  ];
-  return items.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 15);
 }

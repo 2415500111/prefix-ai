@@ -24,6 +24,23 @@ class RedFlag(StrEnum):
     STROKE_SIGNS = "STROKE_SIGNS"
 
 
+# Plain words for staff, e.g. in a notification: "Mentions chest pain".
+LABELS: dict[RedFlag, str] = {
+    RedFlag.CHEST_PAIN: "chest pain",
+    RedFlag.BREATHING: "trouble breathing",
+    RedFlag.SEVERE_BLEEDING: "severe bleeding",
+    RedFlag.FAINTING_OR_SEIZURE: "fainting or a seizure",
+    RedFlag.SEVERE_ABDOMINAL_PAIN: "severe abdominal pain",
+    RedFlag.ALLERGIC_REACTION: "an allergic reaction",
+    RedFlag.STROKE_SIGNS: "signs of a stroke",
+}
+
+
+def describe(flags: frozenset[RedFlag]) -> str:
+    """The flags in plain words, in a fixed order: "chest pain, trouble breathing"."""
+    return ", ".join(LABELS[flag] for flag in RedFlag if flag in flags)
+
+
 _SEVERE = (
     r"(severe|terrible|unbearable|excruciating|intense|extreme|very bad|really bad|worst|sharp)"
 )

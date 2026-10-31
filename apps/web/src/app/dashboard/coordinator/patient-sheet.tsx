@@ -39,6 +39,7 @@ import {
   resendFailed,
 } from "./actions";
 import { RescheduleFields } from "./reschedule-fields";
+import type { SheetTab } from "./sheet-tabs";
 import { type Filter, readinessTone, RiskPill } from "./upcoming-table";
 
 const TIME = new Intl.DateTimeFormat("en-IN", {
@@ -719,10 +720,13 @@ export function PatientSheet({
   drawer,
   filter,
   role,
+  tab = "overview",
 }: {
   drawer: Drawer;
   filter: Filter;
   role: Role;
+  /** The tab to open on, e.g. the prep timeline for a reported problem. */
+  tab?: SheetTab;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(true);
@@ -755,6 +759,7 @@ export function PatientSheet({
     >
       <Tabs
         label="Patient details"
+        defaultValue={tab}
         tabs={[
           {
             value: "overview",

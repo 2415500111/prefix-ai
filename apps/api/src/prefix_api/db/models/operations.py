@@ -5,6 +5,7 @@ import uuid
 from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -12,7 +13,9 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     Uuid,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -26,6 +29,7 @@ from prefix_api.domain.enums import (
     EscalationStatus,
     OfferStatus,
     RiskLevel,
+    StaffNotificationKind,
     TaskStatus,
     TaskType,
     WaitlistStatus,
@@ -72,6 +76,8 @@ class WaitlistEntry(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
 
 class Escalation(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     __tablename__ = "escalation"
+    # The nurse inbox lists a hospital's escalations newest first.
+    __table_args__ = (Index("ix_escalation_newest", "organization_id", "created_at", "id"),)
 
     patient_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("patient.id", ondelete="CASCADE"), index=True
@@ -104,6 +110,8 @@ class Escalation(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
 
 class Task(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     __tablename__ = "task"
+    # The Requests page lists a hospital's reschedule requests newest first.
+    __table_args__ = (Index("ix_task_newest", "organization_id", "type", "created_at", "id"),)
 
     type: Mapped[TaskType] = mapped_column(str_enum(TaskType, "task_type"))
     title: Mapped[str] = mapped_column(String(300))
@@ -124,6 +132,59 @@ class Task(UUIDPrimaryKey, Timestamps, TenantScoped, Base):
     )
     due_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class StaffNotification(UUIDPrimaryKey, TenantScoped, Base):
+    """Something a patient raised that the care team should see: a problem with a step, a
+    question for a nurse, a free-text reply or a reschedule request.
+
+    Written when it happens, so the feed is one indexed query, newest first. The flags record
+    the facts the urgency rules need (``domain.urgency``); whether the item is still open is
+    read from the escalation or task it points to.
+    """
+
+    __tablename__ = "staff_notification"
+    __table_args__ = (Index("ix_staff_notification_newest", "organization_id", "created_at", "id"),)
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("patient.id", ondelete="CASCADE"), index=True
+    )
+    appointment_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("appointment.id", ondelete="CASCADE"), index=True
+    )
+    escalation_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("escalation.id", ondelete="SET NULL"), index=True
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("task.id", ondelete="SET NULL"), index=True
+    )
+    kind: Mapped[StaffNotificationKind] = mapped_column(
+        str_enum(StaffNotificationKind, "staff_notification_kind")
+    )
+    # A short line from a fixed template, e.g. "Cannot complete: Clear liquids". It can name
+    # a symptom, so it is encrypted like the escalation summary.
+    summary: Mapped[str] = mapped_column(EncryptedString("staff_notification.summary"))
+    red_flag: Mapped[bool] = mapped_column(Boolean, default=False)
+    critical_step: Mapped[bool] = mapped_column(Boolean, default=False)
+    # When the patient raised it (the service's clock, not the database's).
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class StaffNotificationRead(UUIDPrimaryKey, TenantScoped, Base):
+    """One staff member has read one notification. Read marks are per person."""
+
+    __tablename__ = "staff_notification_read"
+    __table_args__ = (UniqueConstraint("notification_id", "user_id"),)
+
+    notification_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("staff_notification.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app_user.id", ondelete="CASCADE"), index=True
+    )
+    read_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
 
 
 class BackfillOffer(UUIDPrimaryKey, Timestamps, TenantScoped, Base):

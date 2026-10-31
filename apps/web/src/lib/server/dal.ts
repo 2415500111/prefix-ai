@@ -14,6 +14,8 @@ import type {
   ReleasedSlot,
   RescheduleRequest,
   Role,
+  StaffNotificationFeed,
+  StaffNotificationSummary,
   UpcomingRow,
   WaitlistEntry,
 } from "@prefix/shared";
@@ -167,7 +169,22 @@ export const getBadges = cache(async (): Promise<Badges> => {
   }
 });
 
-/** Reschedule requests: pending first, then those answered in the last week. */
+/** What patients raised, newest first, for the bell (audited by the API). */
+export function getStaffNotifications(): Promise<StaffNotificationFeed> {
+  return guarded(api<StaffNotificationFeed>("/notifications"));
+}
+
+/** Totals and the newest id, for polling. Not patient data. */
+export function getStaffNotificationSummary(): Promise<StaffNotificationSummary> {
+  return guarded(api<StaffNotificationSummary>("/notifications/summary"));
+}
+
+/** Mirrors the API: every staff role that works with patients sees the notifications. */
+export function canSeeNotifications(role: Role): boolean {
+  return role !== "VIEWER";
+}
+
+/** Reschedule requests open or answered in the last week, newest first. */
 export function listRequests(): Promise<RescheduleRequest[]> {
   return guarded(api<RescheduleRequest[]>("/requests"));
 }

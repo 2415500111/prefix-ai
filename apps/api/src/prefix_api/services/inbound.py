@@ -1,7 +1,8 @@
 """Inbound patient replies (SMS/WhatsApp): link them to check-ins and act on them.
 
 Free text that is not a clear YES/NO/HELP is never interpreted here; it is stored and put in
-front of a person (a nurse review task). It could describe a red-flag symptom (safety rule b).
+front of a person (a nurse review task and a staff notification). It could describe a red-flag
+symptom (safety rule b): the deterministic red-flag check marks that notification urgent.
 """
 
 import datetime as dt
@@ -27,12 +28,15 @@ from prefix_api.domain.enums import (
     MessageChannel,
     MessageDirection,
     MessageStatus,
+    StaffNotificationKind,
     TaskType,
 )
 from prefix_api.domain.principal import SystemPrincipal
+from prefix_api.domain.red_flags import describe, detect_red_flags
 from prefix_api.domain.replies import parse_reply
 from prefix_api.services.audit import record_audit
 from prefix_api.services.check_ins import create_task, record_answer
+from prefix_api.services.staff_notifications import notify_staff
 
 JOB = "inbound_messages"
 PURPOSE = "patient_reply"
@@ -109,13 +113,25 @@ def handle_inbound_message(
     )
 
     if check_in is None or response is CheckInResponse.OTHER:
-        create_task(
+        task = create_task(
             session,
             patient=patient,
             appointment_id=check_in.appointment_id if check_in else None,
             task_type=TaskType.NURSE_REVIEW,
             title="Read a message from the patient",
             now=now,
+        )
+        flags = detect_red_flags(body)
+        notify_staff(
+            session,
+            principal=principal,
+            patient=patient,
+            appointment_id=check_in.appointment_id if check_in else None,
+            kind=StaffNotificationKind.MESSAGE,
+            summary="Sent a message" + (f". Mentions {describe(flags)}" if flags else ""),
+            now=now,
+            red_flag=bool(flags),
+            task=task,
         )
         return InboundResult(matched_patient=True, response=response, check_in_id=None)
 

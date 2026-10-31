@@ -2,7 +2,11 @@ import { FlaskConical } from "lucide-react";
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { getBadges, getCurrentUser } from "@/lib/server/dal";
+import {
+  canSeeNotifications,
+  getBadges,
+  getCurrentUser,
+} from "@/lib/server/dal";
 
 import { Sidebar } from "./shell/sidebar";
 import { TopBar } from "./shell/top-bar";
@@ -31,7 +35,12 @@ async function SidebarSlot() {
 async function TopBarSlot() {
   const [user, badges] = await Promise.all([getCurrentUser(), getBadges()]);
   return (
-    <TopBar user={user} badges={badges} canResetDemo={user.role === "ADMIN"} />
+    <TopBar
+      user={user}
+      badges={badges}
+      canResetDemo={user.role === "ADMIN"}
+      canSeeNotifications={canSeeNotifications(user.role)}
+    />
   );
 }
 
